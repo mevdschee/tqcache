@@ -57,14 +57,14 @@ You can use an INI-style config file instead of CLI flags:
 ```ini
 # tqsession.conf
 [server]
-port = :11211
+listen = :11211
 
 [storage]
-data_dir = data
-default_expiry = 0s
-max_data_size = 64MB
-sync_strategy = periodic
-sync_interval = 1s
+data-dir = data
+default-ttl = 0s
+max-data-size = 64MB
+sync-mode = periodic
+sync-interval = 1s
 ```
 
 See [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf) for a complete example.

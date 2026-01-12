@@ -72,15 +72,15 @@ func parseINI(data string) (*Config, error) {
 			}
 		case "storage":
 			switch key {
-			case "data_dir":
+			case "data-dir":
 				cfg.Storage.DataDir = value
-			case "default_expiry":
+			case "default-ttl":
 				cfg.Storage.DefaultExpiry = value
-			case "max_data_size":
+			case "max-data-size":
 				cfg.Storage.MaxDataSize = value
-			case "sync_strategy":
+			case "sync-mode":
 				cfg.Storage.SyncStrategy = value
-			case "sync_interval":
+			case "sync-interval":
 				cfg.Storage.SyncInterval = value
 			}
 		}
