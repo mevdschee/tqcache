@@ -9,3 +9,7 @@ periodic,TQSession,memcache,SET,61739.34,0.0162,56
 periodic,TQSession,memcache,GET,114611.26,0.0087,56
 periodic,Redis,redis,SET,49997.24,0.0200,784
 periodic,Redis,redis,GET,101911.70,0.0098,784
+always,TQSession,memcache,SET,833.28,1.2001,58
+always,TQSession,memcache,GET,103116.66,0.0097,58
+always,Redis,redis,SET,4977.67,0.2009,1049
+always,Redis,redis,GET,101280.72,0.0099,1049
