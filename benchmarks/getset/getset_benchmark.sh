@@ -103,10 +103,23 @@ run_benchmark_set() {
     kill_port 11222
 
     # --- Start TQSession ---
-    echo "Starting TQSession (Sync Interval: $SYNC_INTERVAL)..."
+    echo "Starting TQSession (Sync Mode: $SYNC_MODE, Interval: $SYNC_INTERVAL)..."
     rm -rf /tmp/tqsession-bench
     mkdir -p /tmp/tqsession-bench
-    ./tqsession-server -config getset_benchmark.conf > /dev/null 2>&1 &
+    
+    # Generate config file with current sync mode
+    cat > /tmp/tqsession-bench.conf << CONF
+[server]
+listen = :11221
+
+[storage]
+data-dir = /tmp/tqsession-bench
+sync-mode = $SYNC_MODE
+sync-interval = $SYNC_INTERVAL
+max-data-size = 1GB
+CONF
+    
+    ./tqsession-server -config /tmp/tqsession-bench.conf > /dev/null 2>&1 &
     TQ_PID=$!
 
     # --- Start Redis ---
