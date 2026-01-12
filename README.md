@@ -70,7 +70,7 @@ NB: Set "max-data-size = 0" and "max-ttl = 24h" to prevent data loss and prevent
 **TQSession vs Redis vs Memcached**
 
 Benchmarks were run on a local development environment (Linux, Loopback).
-100,000 keys were used for the benchmark, each with a size of 1KB.
+100,000 keys were used for the benchmark, each with a size of 10KB.
 
 ### Benchmark Results
 
