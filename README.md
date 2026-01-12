@@ -86,8 +86,8 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 | Reference | SET (RPS) | GET (RPS) | Memory (MB) |
 | :--- | :--- | :--- | :--- |
 | **Memcached** (Memory) | ~138k | ~303k | ~681MB |
-| **Redis** (Periodic) | ~52k | ~114k | ~784MB |
-| **TQSession** (Periodic) | ~104k | ~167k | ~58MB |
+| **Redis** (Periodic) | ~52k | ~114k | ~766MB |
+| **TQSession** (Periodic) | ~104k | ~167k | ~54MB |
 
 ## Testing
 
