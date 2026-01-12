@@ -87,7 +87,7 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 | :--- | :--- | :--- | :--- |
 | **Memcached** (Memory) | ~138k | ~303k | ~681MB |
 | **Redis** (Periodic) | ~52k | ~114k | ~784MB |
-| **TQSession** (Periodic) | ~104k | ~137k | ~58MB |
+| **TQSession** (Periodic) | ~104k | ~167k | ~58MB |
 
 ## Testing
 
