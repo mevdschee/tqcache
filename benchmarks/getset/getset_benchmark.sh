@@ -88,13 +88,13 @@ stop_monitor() {
 }
 
 run_benchmark_set() {
-    MODE=$1
+    SYNC_MODE=$1
     SYNC_INTERVAL=$2
     REDIS_FLAGS=$3
     ENABLE_MEMCACHED=$4
 
     echo "==========================================================="
-    echo "Running Benchmark Mode: $MODE"
+    echo "Running Benchmark Mode: $SYNC_MODE"
     echo "==========================================================="
 
     # Ensure ports are free
@@ -104,9 +104,20 @@ run_benchmark_set() {
 
     # --- Start TQSession ---
     echo "Starting TQSession (Sync Interval: $SYNC_INTERVAL)..."
+
+    cat > benchmark_config.conf <<EOF
+[server]
+listen = :11221
+
+[storage]
+data-dir = /tmp/tqsession-bench
+sync-mode = $SYNC_MODE
+sync-interval = $SYNC_INTERVAL
+max-data-size = 1GB
+EOF
     rm -rf /tmp/tqsession-bench
     mkdir -p /tmp/tqsession-bench
-    ./tqsession-server -data-dir=/tmp/tqsession-bench -listen=:11221 -sync-interval=$SYNC_INTERVAL > /dev/null 2>&1 &
+    ./tqsession-server -config benchmark_config.conf > /dev/null 2>&1 &
     TQ_PID=$!
 
     # --- Start Redis ---
@@ -132,14 +143,14 @@ run_benchmark_set() {
     # TQSession
     echo "Benchmarking TQSession..."
     start_monitor $TQ_PID
-    ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQSession" -mode "$MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
+    ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQSession" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
     MEM_MB=$(stop_monitor)
     awk -v mem="$MEM_MB" '{print $0 "," mem}' results.tmp >> $OUTPUT
 
     # Redis
     echo "Benchmarking Redis..."
     start_monitor $REDIS_PID
-    ./benchmark-tool -host localhost:6380 -protocol redis -label "Redis" -mode "$MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
+    ./benchmark-tool -host localhost:6380 -protocol redis -label "Redis" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
     MEM_MB=$(stop_monitor)
     awk -v mem="$MEM_MB" '{print $0 "," mem}' results.tmp >> $OUTPUT
 
@@ -147,7 +158,7 @@ run_benchmark_set() {
     if [ "$ENABLE_MEMCACHED" = "true" ]; then
         echo "Benchmarking Memcached..."
         start_monitor $MEM_PID
-        ./benchmark-tool -host localhost:11222 -protocol memcache -label "Memcached" -mode "$MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
+        ./benchmark-tool -host localhost:11222 -protocol memcache -label "Memcached" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQUESTS -size $SIZE -keys $KEYS -csv > results.tmp
         MEM_MB=$(stop_monitor)
         awk -v mem="$MEM_MB" '{print $0 "," mem}' results.tmp >> $OUTPUT
     fi
@@ -161,11 +172,11 @@ run_benchmark_set() {
     if [ ! -z "$MEM_PID" ]; then wait $MEM_PID 2>/dev/null || true; fi
 }
 
-# 1. Mode: Memory (1s sync = default)
-run_benchmark_set "Memory" "1s" "--save \"\" --appendonly no" "true"
+# 1. Mode: none
+run_benchmark_set "none" "1s" "--save \"\" --appendonly no" "true"
 
-# 2. Mode: Periodic (1s sync)  
-run_benchmark_set "Periodic" "1s" "--appendonly yes --appendfsync everysec" "false"
+# 2. Mode: periodic (1s sync)  
+run_benchmark_set "periodic" "1s" "--appendonly yes --appendfsync everysec" "false"
 
 echo "---------------------------------------------------"
 echo "Benchmark completed. Results saved to $OUTPUT"

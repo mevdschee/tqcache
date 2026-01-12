@@ -115,6 +115,8 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 
 	if c.Storage.SyncStrategy != "" {
 		switch c.Storage.SyncStrategy {
+		case "always":
+			cfg.SyncStrategy = tqsession.SyncAlways
 		case "periodic":
 			cfg.SyncStrategy = tqsession.SyncPeriodic
 		case "none":
@@ -133,43 +135,6 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func parseBytes(s string) (int, error) {
-	s = strings.TrimSpace(strings.ToUpper(s))
-	if s == "" {
-		return 0, nil
-	}
-
-	var multiplier int64 = 1
-	if strings.HasSuffix(s, "GB") {
-		multiplier = 1024 * 1024 * 1024
-		s = strings.TrimSuffix(s, "GB")
-	} else if strings.HasSuffix(s, "G") {
-		multiplier = 1024 * 1024 * 1024
-		s = strings.TrimSuffix(s, "G")
-	} else if strings.HasSuffix(s, "MB") {
-		multiplier = 1024 * 1024
-		s = strings.TrimSuffix(s, "MB")
-	} else if strings.HasSuffix(s, "M") {
-		multiplier = 1024 * 1024
-		s = strings.TrimSuffix(s, "M")
-	} else if strings.HasSuffix(s, "KB") {
-		multiplier = 1024
-		s = strings.TrimSuffix(s, "KB")
-	} else if strings.HasSuffix(s, "K") {
-		multiplier = 1024
-		s = strings.TrimSuffix(s, "K")
-	} else if strings.HasSuffix(s, "B") {
-		s = strings.TrimSuffix(s, "B")
-	}
-
-	val, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return int(val * multiplier), nil
 }
 
 func parseBytes64(s string) (int64, error) {
