@@ -50,7 +50,7 @@ Each record is exactly **1060 bytes** at offset `keyId * 1060`:
 
 | Field          | Size    | Description                                               |
 |----------------|---------|-----------------------------------------------------------|
-| `free`         | 1 byte  | `0x00` = in use, `0x01` = deleted/free                    |
+| `free`         | 1 byte  | Reserved (continuous compaction keeps file compact)       |
 | `keyLen`       | 2 bytes | Actual key length (uint16, 0-1024)                        |
 | `key`          | 1024 bytes | Key string, null-padded                                |
 | `lastAccessed` | 8 bytes | Unix timestamp (int64), for LRU                           |

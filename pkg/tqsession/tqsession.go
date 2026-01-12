@@ -55,7 +55,7 @@ type Cache struct {
 
 // New creates a new TQSession cache
 func New(cfg Config) (*Cache, error) {
-	storage, err := NewStorage(cfg.DataDir)
+	storage, err := NewStorage(cfg.DataDir, cfg.SyncStrategy == SyncAlways)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}

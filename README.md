@@ -41,33 +41,16 @@ tqsession [options]
 | Flag             | Default     | Description                                                    |
 |------------------|-------------|----------------------------------------------------------------|
 | `-config`        |             | Path to INI config file (overrides other flags)                |
-| `-data-dir`      | `data`      | Directory for persistent data files                            |
 | `-listen`        | `:11211`    | Address to listen on (`[host]:port`)                           |
-| `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`                                  |
-| `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
+| `-data-dir`      | `data`      | Directory for persistent data files                            |
 | `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                         |
-| `-max-data-size` | `67108864`  | Max live data size in bytes for LRU eviction (`0` = unlimited) |
+| `-max-data-size` | `64MB`      | Max live data size in bytes for LRU eviction (`0` = unlimited) |
+| `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                        |
+| `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
 
 **Fixed limits:** Max key size is 1KB, max value size is 64MB.
 
-### Config File
-
-You can use an INI-style config file instead of CLI flags:
-
-```ini
-# tqsession.conf
-[server]
-listen = :11211
-
-[storage]
-data-dir = data
-default-ttl = 0s
-max-data-size = 64MB
-sync-mode = periodic
-sync-interval = 1s
-```
-
-See [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf) for a complete example.
+NB: You may also use a config file instead of CLI flags (see [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf)).
 
 ## PHP Configuration
 
@@ -77,6 +60,8 @@ Configure PHP to use TQSession as the session handler:
 session.save_handler = memcached
 session.save_path = "localhost:11211"
 ```
+
+NB: Set "max-data-size = 0" to prevent data loss.
 
 ## Benchmarks
 

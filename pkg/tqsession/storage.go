@@ -51,22 +51,24 @@ type KeyRecord struct {
 
 // Storage handles all file I/O for the cache
 type Storage struct {
-	dataDir   string
-	keysFile  *os.File
-	dataFiles [NumBuckets]*os.File
+	dataDir    string
+	keysFile   *os.File
+	dataFiles  [NumBuckets]*os.File
+	syncAlways bool // If true, fsync after every write
 
 	// Bucket sizes: 1KB, 2KB, 4KB, ..., 64MB
 	bucketSizes [NumBuckets]int
 }
 
 // NewStorage creates a new storage instance
-func NewStorage(dataDir string) (*Storage, error) {
+func NewStorage(dataDir string, syncAlways bool) (*Storage, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create data dir: %w", err)
 	}
 
 	s := &Storage{
-		dataDir: dataDir,
+		dataDir:    dataDir,
+		syncAlways: syncAlways,
 	}
 
 	// Calculate bucket sizes
@@ -191,6 +193,9 @@ func (s *Storage) WriteKeyRecord(keyId int64, rec *KeyRecord) error {
 	binary.LittleEndian.PutUint64(buf[1052:1060], uint64(rec.SlotIdx))
 
 	_, err := s.keysFile.WriteAt(buf, offset)
+	if err == nil && s.syncAlways {
+		err = s.keysFile.Sync()
+	}
 	return err
 }
 
@@ -239,6 +244,9 @@ func (s *Storage) WriteDataSlot(bucket int, slotIdx int64, data []byte) error {
 	copy(buf[DataHeaderSize:], data)
 
 	_, err := s.dataFiles[bucket].WriteAt(buf, offset)
+	if err == nil && s.syncAlways {
+		err = s.dataFiles[bucket].Sync()
+	}
 	return err
 }
 
