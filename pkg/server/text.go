@@ -353,7 +353,7 @@ func (s *Server) handleTextFlushAll(writer *bufio.Writer, parts []string) {
 func (s *Server) handleTextStats(writer *bufio.Writer) {
 	stats := s.cache.Stats()
 	writer.WriteString(fmt.Sprintf("STAT pid %d\r\n", os.Getpid()))
-	writer.WriteString(fmt.Sprintf("STAT uptime %d\r\n", int64(time.Since(s.cache.StartTime).Seconds())))
+	writer.WriteString(fmt.Sprintf("STAT uptime %d\r\n", int64(time.Since(s.cache.GetStartTime()).Seconds())))
 	writer.WriteString(fmt.Sprintf("STAT time %d\r\n", time.Now().Unix()))
 	writer.WriteString("STAT version 1.0.0\r\n")
 	for k, v := range stats {

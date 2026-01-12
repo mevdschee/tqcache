@@ -12,12 +12,12 @@ import (
 
 // Server represents the TQSession network server.
 type Server struct {
-	cache *tqsession.Cache
+	cache tqsession.CacheInterface
 	addr  string
 }
 
 // New creates a new Server instance.
-func New(cache *tqsession.Cache, addr string) *Server {
+func New(cache tqsession.CacheInterface, addr string) *Server {
 	return &Server{
 		cache: cache,
 		addr:  addr,

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -54,6 +55,10 @@ type Storage struct {
 	keysFile   *os.File
 	dataFiles  [NumBuckets]*os.File
 	syncAlways bool // If true, fsync after every write
+
+	// RWMutexes for concurrent access
+	keysMu sync.RWMutex             // Protects keys file
+	dataMu [NumBuckets]sync.RWMutex // Per-bucket data file locks
 
 	// Bucket sizes: 1KB, 2KB, 4KB, ..., 64MB
 	bucketSizes [NumBuckets]int

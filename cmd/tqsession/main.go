@@ -20,9 +20,10 @@ func main() {
 	configFile := flag.String("config", "", "Path to config file (INI format)")
 	dataDir := flag.String("data-dir", "data", "Directory for data files")
 	listen := flag.String("listen", ":11211", "Address to listen on ([host]:port)")
-	syncMode := flag.String("sync-mode", "periodic", "Sync mode: none, periodic")
+	syncMode := flag.String("sync-mode", "periodic", "Sync mode: none, periodic, always")
 	syncInterval := flag.Duration("sync-interval", time.Second, "Sync interval for periodic fsync")
 	defaultTTL := flag.Duration("default-ttl", 0, "Default TTL for keys without explicit expiry (0 = no expiry)")
+	maxTTL := flag.Duration("max-ttl", 0, "Maximum TTL cap for any key (0 = unlimited)")
 	maxDataSize := flag.Int64("max-data-size", 64*1024*1024, "Maximum live data size in bytes for LRU eviction (0 = unlimited)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n", os.Args[0])
@@ -63,6 +64,7 @@ func main() {
 		cfg = tqsession.Config{
 			DataDir:       *dataDir,
 			DefaultExpiry: *defaultTTL,
+			MaxTTL:        *maxTTL,
 			MaxKeySize:    1024,             // 1KB max key size
 			MaxValueSize:  64 * 1024 * 1024, // 64MB
 			MaxDataSize:   *maxDataSize,
@@ -72,7 +74,7 @@ func main() {
 		serverPort = *listen
 	}
 
-	cache, err := tqsession.New(cfg)
+	cache, err := tqsession.NewSharded(cfg, 16)
 	if err != nil {
 		log.Fatalf("Failed to initialize TQSession: %v", err)
 	}

@@ -19,6 +19,7 @@ type Config struct {
 	Storage struct {
 		DataDir       string
 		DefaultExpiry string // e.g., "0s", "1h"
+		MaxTTL        string // e.g., "0s" (unlimited), "24h"
 		MaxDataSize   string // e.g., "64MB" - max live data before LRU eviction
 		SyncStrategy  string // "none", "periodic"
 		SyncInterval  string // e.g., "1s"
@@ -76,6 +77,8 @@ func parseINI(data string) (*Config, error) {
 				cfg.Storage.DataDir = value
 			case "default-ttl":
 				cfg.Storage.DefaultExpiry = value
+			case "max-ttl":
+				cfg.Storage.MaxTTL = value
 			case "max-data-size":
 				cfg.Storage.MaxDataSize = value
 			case "sync-mode":
@@ -103,6 +106,14 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 			return cfg, fmt.Errorf("invalid default_expiry: %w", err)
 		}
 		cfg.DefaultExpiry = dur
+	}
+
+	if c.Storage.MaxTTL != "" {
+		dur, err := time.ParseDuration(c.Storage.MaxTTL)
+		if err != nil {
+			return cfg, fmt.Errorf("invalid max-ttl: %w", err)
+		}
+		cfg.MaxTTL = dur
 	}
 
 	if c.Storage.MaxDataSize != "" {

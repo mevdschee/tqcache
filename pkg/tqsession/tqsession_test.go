@@ -507,6 +507,51 @@ func TestExpiry(t *testing.T) {
 	}
 }
 
+func TestMaxTTL(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "tqsession-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	config := DefaultConfig()
+	config.DataDir = tmpDir
+	config.SyncStrategy = SyncNone
+	config.MaxTTL = 200 * time.Millisecond // Max TTL of 200ms
+
+	c, err := New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Set with TTL larger than max - should be capped
+	_, err = c.Set("capped_key", []byte("capped_value"), 10*time.Second)
+	if err != nil {
+		t.Fatalf("Set failed: %v", err)
+	}
+
+	// Key should exist initially
+	val, _, err := c.Get("capped_key")
+	if err != nil {
+		t.Fatalf("Get failed: %v", err)
+	}
+	if string(val) != "capped_value" {
+		t.Errorf("Expected 'capped_value', got '%s'", val)
+	}
+
+	// Wait for max TTL to expire (not the requested 10s)
+	time.Sleep(300 * time.Millisecond)
+
+	// Should be gone because TTL was capped to 200ms
+	_, _, err = c.Get("capped_key")
+	if err != os.ErrNotExist {
+		t.Errorf("Expected ErrNotExist after max TTL expiry, got %v (MaxTTL cap not applied?)", err)
+	}
+
+	t.Log("MaxTTL correctly caps requested TTL values")
+}
+
 func TestLargeValue(t *testing.T) {
 	c, cleanup := setupTestCache(t)
 	defer cleanup()
@@ -761,7 +806,7 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// Check live data size is within limits
-	liveSize := c.worker.LiveDataSize()
+	liveSize := c.LiveDataSize()
 	if liveSize > config.MaxDataSize {
 		t.Errorf("liveDataSize %d exceeds MaxDataSize %d", liveSize, config.MaxDataSize)
 	}
@@ -792,8 +837,8 @@ func TestLRUAccessOrder(t *testing.T) {
 
 	config := DefaultConfig()
 	config.DataDir = tmpDir
-	config.SyncStrategy = SyncNone
-	config.MaxDataSize = 3200 // Enough for 3x 1KB items
+	config.SyncStrategy = SyncPeriodic // Use periodic for accurate LRU ordering test
+	config.MaxDataSize = 3200          // Enough for 3x 1KB items
 
 	c, err := New(config)
 	if err != nil {
