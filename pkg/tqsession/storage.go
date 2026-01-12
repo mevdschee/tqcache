@@ -1,0 +1,287 @@
+package tqsession
+
+import (
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+)
+
+// Record sizes
+const (
+	KeyRecordSize  = 1 + 1024 + 8 + 8 + 8 // 1049 bytes: free, key, lastAccessed, cas, expiry
+	MaxKeySize     = 1024
+	DataHeaderSize = 1 + 4 // free + length
+)
+
+// Bucket configuration: 16 buckets from 1KB to 64MB (doubling each time)
+const (
+	NumBuckets    = 16
+	MinBucketSize = 1024             // 1KB
+	MaxBucketSize = 64 * 1024 * 1024 // 64MB
+)
+
+// Free flags
+const (
+	FlagInUse   = 0x00
+	FlagDeleted = 0x01
+)
+
+var (
+	ErrKeyNotFound   = errors.New("key not found")
+	ErrKeyTooLarge   = errors.New("key too large")
+	ErrValueTooLarge = errors.New("value too large")
+	ErrKeyExists     = errors.New("key already exists")
+	ErrCasMismatch   = errors.New("cas mismatch")
+)
+
+// KeyRecord represents a fixed-size record in the keys file
+type KeyRecord struct {
+	Free         byte
+	Key          [MaxKeySize]byte
+	LastAccessed int64
+	Cas          uint64
+	Expiry       int64
+}
+
+// Storage handles all file I/O for the cache
+type Storage struct {
+	dataDir   string
+	keysFile  *os.File
+	dataFiles [NumBuckets]*os.File
+
+	// Bucket sizes: 1KB, 2KB, 4KB, ..., 64MB
+	bucketSizes [NumBuckets]int
+}
+
+// NewStorage creates a new storage instance
+func NewStorage(dataDir string) (*Storage, error) {
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create data dir: %w", err)
+	}
+
+	s := &Storage{
+		dataDir: dataDir,
+	}
+
+	// Calculate bucket sizes
+	size := MinBucketSize
+	for i := 0; i < NumBuckets; i++ {
+		s.bucketSizes[i] = size
+		size *= 2
+	}
+
+	// Open keys file
+	keysPath := filepath.Join(dataDir, "keys")
+	keysFile, err := os.OpenFile(keysPath, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open keys file: %w", err)
+	}
+	s.keysFile = keysFile
+
+	// Open data bucket files
+	for i := 0; i < NumBuckets; i++ {
+		dataPath := filepath.Join(dataDir, fmt.Sprintf("data_%02d", i))
+		dataFile, err := os.OpenFile(dataPath, os.O_RDWR|os.O_CREATE, 0644)
+		if err != nil {
+			s.Close()
+			return nil, fmt.Errorf("failed to open data file %d: %w", i, err)
+		}
+		s.dataFiles[i] = dataFile
+	}
+
+	return s, nil
+}
+
+// Close closes all file handles
+func (s *Storage) Close() error {
+	var firstErr error
+	if s.keysFile != nil {
+		if err := s.keysFile.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	for i := 0; i < NumBuckets; i++ {
+		if s.dataFiles[i] != nil {
+			if err := s.dataFiles[i].Close(); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
+}
+
+// Sync fsyncs all files
+func (s *Storage) Sync() error {
+	if err := s.keysFile.Sync(); err != nil {
+		return err
+	}
+	for i := 0; i < NumBuckets; i++ {
+		if err := s.dataFiles[i].Sync(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// BucketForSize returns the bucket index for a given value size
+func (s *Storage) BucketForSize(size int) (int, error) {
+	for i := 0; i < NumBuckets; i++ {
+		if size <= s.bucketSizes[i] {
+			return i, nil
+		}
+	}
+	return -1, ErrValueTooLarge
+}
+
+// BucketSize returns the slot size for a bucket (excluding header)
+func (s *Storage) BucketSize(bucket int) int {
+	return s.bucketSizes[bucket]
+}
+
+// SlotSize returns the total slot size for a bucket (including header)
+func (s *Storage) SlotSize(bucket int) int {
+	return DataHeaderSize + s.bucketSizes[bucket]
+}
+
+// ReadKeyRecord reads a key record at the given keyId
+func (s *Storage) ReadKeyRecord(keyId int64) (*KeyRecord, error) {
+	offset := keyId * KeyRecordSize
+	buf := make([]byte, KeyRecordSize)
+
+	n, err := s.keysFile.ReadAt(buf, offset)
+	if err != nil {
+		return nil, err
+	}
+	if n != KeyRecordSize {
+		return nil, fmt.Errorf("short read: got %d, want %d", n, KeyRecordSize)
+	}
+
+	rec := &KeyRecord{
+		Free:         buf[0],
+		LastAccessed: int64(binary.LittleEndian.Uint64(buf[1025:1033])),
+		Cas:          binary.LittleEndian.Uint64(buf[1033:1041]),
+		Expiry:       int64(binary.LittleEndian.Uint64(buf[1041:1049])),
+	}
+	copy(rec.Key[:], buf[1:1025])
+
+	return rec, nil
+}
+
+// WriteKeyRecord writes a key record at the given keyId
+func (s *Storage) WriteKeyRecord(keyId int64, rec *KeyRecord) error {
+	offset := keyId * KeyRecordSize
+	buf := make([]byte, KeyRecordSize)
+
+	buf[0] = rec.Free
+	copy(buf[1:1025], rec.Key[:])
+	binary.LittleEndian.PutUint64(buf[1025:1033], uint64(rec.LastAccessed))
+	binary.LittleEndian.PutUint64(buf[1033:1041], rec.Cas)
+	binary.LittleEndian.PutUint64(buf[1041:1049], uint64(rec.Expiry))
+
+	_, err := s.keysFile.WriteAt(buf, offset)
+	return err
+}
+
+// MarkKeyFree marks a key record as free
+func (s *Storage) MarkKeyFree(keyId int64) error {
+	offset := keyId * KeyRecordSize
+	_, err := s.keysFile.WriteAt([]byte{FlagDeleted}, offset)
+	return err
+}
+
+// ReadDataSlot reads data from a bucket slot
+func (s *Storage) ReadDataSlot(bucket int, slotIdx int64) ([]byte, error) {
+	slotSize := s.SlotSize(bucket)
+	offset := slotIdx * int64(slotSize)
+
+	// Read header
+	header := make([]byte, DataHeaderSize)
+	if _, err := s.dataFiles[bucket].ReadAt(header, offset); err != nil {
+		return nil, err
+	}
+
+	if header[0] == FlagDeleted {
+		return nil, ErrKeyNotFound
+	}
+
+	length := binary.LittleEndian.Uint32(header[1:5])
+
+	// Read data
+	data := make([]byte, length)
+	if _, err := s.dataFiles[bucket].ReadAt(data, offset+DataHeaderSize); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+// WriteDataSlot writes data to a bucket slot
+func (s *Storage) WriteDataSlot(bucket int, slotIdx int64, data []byte) error {
+	slotSize := s.SlotSize(bucket)
+	offset := slotIdx * int64(slotSize)
+
+	// Prepare buffer with header + data (padded to slot size)
+	buf := make([]byte, slotSize)
+	buf[0] = FlagInUse
+	binary.LittleEndian.PutUint32(buf[1:5], uint32(len(data)))
+	copy(buf[DataHeaderSize:], data)
+
+	_, err := s.dataFiles[bucket].WriteAt(buf, offset)
+	return err
+}
+
+// MarkDataFree marks a data slot as free
+func (s *Storage) MarkDataFree(bucket int, slotIdx int64) error {
+	slotSize := s.SlotSize(bucket)
+	offset := slotIdx * int64(slotSize)
+	_, err := s.dataFiles[bucket].WriteAt([]byte{FlagDeleted}, offset)
+	return err
+}
+
+// KeysFileSize returns the current size of the keys file
+func (s *Storage) KeysFileSize() (int64, error) {
+	info, err := s.keysFile.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
+// DataFileSize returns the current size of a data bucket file
+func (s *Storage) DataFileSize(bucket int) (int64, error) {
+	info, err := s.dataFiles[bucket].Stat()
+	if err != nil {
+		return 0, err
+	}
+	return info.Size(), nil
+}
+
+// KeyCount returns the number of key slots in the file
+func (s *Storage) KeyCount() (int64, error) {
+	size, err := s.KeysFileSize()
+	if err != nil {
+		return 0, err
+	}
+	return size / KeyRecordSize, nil
+}
+
+// SlotCount returns the number of slots in a data bucket file
+func (s *Storage) SlotCount(bucket int) (int64, error) {
+	size, err := s.DataFileSize(bucket)
+	if err != nil {
+		return 0, err
+	}
+	return size / int64(s.SlotSize(bucket)), nil
+}
+
+// UpdateLastAccessed updates only the lastAccessed field
+func (s *Storage) UpdateLastAccessed(keyId int64, lastAccessed time.Time) error {
+	offset := keyId*KeyRecordSize + 1 + MaxKeySize // Skip free + key
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(lastAccessed.Unix()))
+	_, err := s.keysFile.WriteAt(buf, offset)
+	return err
+}
