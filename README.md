@@ -16,4 +16,3 @@ Blog post:
 ## Architecture
 
 See [PROJECT_BRIEF.md](PROJECT_BRIEF.md) for architectural details.
-# tqsession
