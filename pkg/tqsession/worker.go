@@ -97,10 +97,7 @@ func (w *Worker) recover() error {
 			continue // Skip unreadable records
 		}
 
-		if rec.Free == FlagDeleted {
-			w.freeLists.PushKey(keyId)
-			continue
-		}
+		// With continuous compaction, all records in file are valid
 
 		// Extract key (null-terminated)
 		keyBytes := rec.Key[:]
@@ -351,7 +348,6 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 
 	// Write key record (including bucket/slotIdx for recovery)
 	keyRec := &KeyRecord{
-		Free:         FlagInUse,
 		KeyLen:       uint16(len(key)),
 		LastAccessed: now.Unix(),
 		Cas:          cas,

@@ -39,7 +39,6 @@ var (
 
 // KeyRecord represents a fixed-size record in the keys file
 type KeyRecord struct {
-	Free         byte
 	KeyLen       uint16 // Actual key length (0-1024)
 	Key          [MaxKeySize]byte
 	LastAccessed int64
@@ -165,15 +164,14 @@ func (s *Storage) ReadKeyRecord(keyId int64) (*KeyRecord, error) {
 	}
 
 	rec := &KeyRecord{
-		Free:         buf[0],
-		KeyLen:       binary.LittleEndian.Uint16(buf[1:3]),
-		LastAccessed: int64(binary.LittleEndian.Uint64(buf[1027:1035])),
-		Cas:          binary.LittleEndian.Uint64(buf[1035:1043]),
-		Expiry:       int64(binary.LittleEndian.Uint64(buf[1043:1051])),
-		Bucket:       buf[1051],
-		SlotIdx:      int64(binary.LittleEndian.Uint64(buf[1052:1060])),
+		KeyLen:       binary.LittleEndian.Uint16(buf[0:2]),
+		LastAccessed: int64(binary.LittleEndian.Uint64(buf[1026:1034])),
+		Cas:          binary.LittleEndian.Uint64(buf[1034:1042]),
+		Expiry:       int64(binary.LittleEndian.Uint64(buf[1042:1050])),
+		Bucket:       buf[1050],
+		SlotIdx:      int64(binary.LittleEndian.Uint64(buf[1051:1059])),
 	}
-	copy(rec.Key[:], buf[3:1027])
+	copy(rec.Key[:], buf[2:1026])
 
 	return rec, nil
 }
@@ -183,14 +181,13 @@ func (s *Storage) WriteKeyRecord(keyId int64, rec *KeyRecord) error {
 	offset := keyId * KeyRecordSize
 	buf := make([]byte, KeyRecordSize)
 
-	buf[0] = rec.Free
-	binary.LittleEndian.PutUint16(buf[1:3], rec.KeyLen)
-	copy(buf[3:1027], rec.Key[:])
-	binary.LittleEndian.PutUint64(buf[1027:1035], uint64(rec.LastAccessed))
-	binary.LittleEndian.PutUint64(buf[1035:1043], rec.Cas)
-	binary.LittleEndian.PutUint64(buf[1043:1051], uint64(rec.Expiry))
-	buf[1051] = rec.Bucket
-	binary.LittleEndian.PutUint64(buf[1052:1060], uint64(rec.SlotIdx))
+	binary.LittleEndian.PutUint16(buf[0:2], rec.KeyLen)
+	copy(buf[2:1026], rec.Key[:])
+	binary.LittleEndian.PutUint64(buf[1026:1034], uint64(rec.LastAccessed))
+	binary.LittleEndian.PutUint64(buf[1034:1042], rec.Cas)
+	binary.LittleEndian.PutUint64(buf[1042:1050], uint64(rec.Expiry))
+	buf[1050] = rec.Bucket
+	binary.LittleEndian.PutUint64(buf[1051:1059], uint64(rec.SlotIdx))
 
 	_, err := s.keysFile.WriteAt(buf, offset)
 	if err == nil && s.syncAlways {

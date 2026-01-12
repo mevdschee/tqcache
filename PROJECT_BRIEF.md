@@ -106,13 +106,13 @@ Start at 1024 bytes and double the size for each file.
 
 **Invalidation Flow** (no scanning required):
 1. Background goroutine calls `PeekMin()`
-2. If `root.expiry <= now`: pop, mark keys record as free, mark data record as free
+2. If `root.expiry <= now`: pop, compact file slots via continuous defrag
 3. Repeat until root is not expired or heap is empty
 
 #### 3. LRU List (Access-Order Eviction)
 - **In-memory**: Doubly-linked list ordered by `lastAccessed`
 - **On update**: Move node to head, update `lastAccessed` in keys file via fseek
-- **On eviction**: Remove from tail, mark records as free
+- **On eviction**: Remove from tail, compact file slots via continuous defrag
 
 #### 4. Continuous Defragmentation (Always Compact Files)
 
