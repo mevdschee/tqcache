@@ -69,25 +69,6 @@ sync-interval = 1s
 
 See [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf) for a complete example.
 
-### Examples
-
-```bash
-# Start with defaults
-tqsession
-
-# Use config file
-tqsession -config /etc/tqsession.conf
-
-# Custom port and data directory
-tqsession -port :11212 -data-dir /var/lib/tqsession
-
-# Set default TTL to 24 hours
-tqsession -default-ttl 24h
-
-# Increase max data size to 1GB
-tqsession -max-data-size 1073741824
-```
-
 ## PHP Configuration
 
 Configure PHP to use TQSession as the session handler:
@@ -95,13 +76,6 @@ Configure PHP to use TQSession as the session handler:
 ```ini
 session.save_handler = memcached
 session.save_path = "localhost:11211"
-```
-
-Or with PHP-FPM:
-
-```ini
-php_admin_value[session.save_handler] = memcached
-php_admin_value[session.save_path] = "localhost:11211"
 ```
 
 ## Benchmarks
@@ -129,27 +103,10 @@ go tool pprof http://localhost:6062/debug/pprof/profile?seconds=30
 
 ## Architecture
 
-TQSession uses a **single-worker architecture** for simplicity and predictable performance:
-
-| Goroutine   | Responsibility                                             |
-|-------------|------------------------------------------------------------|
-| **Server**  | Accepts client connections, routes to Storage worker       |
-| **Storage** | Handles all file operations sequentially (no locks needed) |
-| **Sync**    | Calls `fsync` periodically (configurable interval)         |
-
-### Storage Format
-
-**Keys file** (`keys`): Fixed 1060-byte records
-- 2-byte key length, key string (1024 bytes), CAS, expiry (ms), bucket/slot pointers
-
-**Data files** (`data_00` - `data_15`): 16 size-bucketed files (1KB → 64MB)
-- Each slot stores: free flag + length + data
-
-### In-Memory Structures
-
-- **B-tree index**: O(log n) key lookups
-- **Expiry min-heap**: Efficient TTL cleanup without scanning
-- **LRU list**: Evicts least recently used items when size limit reached (expired first)
-- **Free lists**: O(1) slot allocation via stack-based recycling
+TQSession stores session data on disk in a fixed-size record formats and
+holds several memory data structures to speed up access. It assumes SSD
+performance with good random I/O and enough free memory to let the OS keep
+the disk blocks in the cache. It does not perform any disk I/O optimization
+and does not use append-only files. 
 
 See [PROJECT_BRIEF.md](PROJECT_BRIEF.md) for detailed architecture.
