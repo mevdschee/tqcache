@@ -172,5 +172,80 @@ echo "Benchmark completed. Results saved to $OUTPUT"
 echo "---------------------------------------------------"
 column -s, -t $OUTPUT
 
+# Generate PNG
+echo ""
+echo "Generating visualization..."
+
+python3 << 'EOF'
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+def annotate_bars(ax):
+    for p in ax.patches:
+        if p.get_height() > 0:
+            ax.annotate(f'{int(p.get_height())}', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()), 
+                        ha='center', va='bottom', fontsize=8, rotation=90, xytext=(0, 5), 
+                        textcoords='offset points')
+
+# Load data
+df = pd.read_csv('getset_benchmark.csv')
+df.columns = [c.strip() for c in df.columns]
+for col in ['Mode', 'Backend', 'Protocol', 'Operation']:
+    if col in df.columns:
+        df[col] = df[col].astype(str).str.strip()
+
+# Prepare Data
+write_df = df[df['Operation'] == 'SET']
+write_pivot = write_df.pivot(index='Mode', columns='Backend', values='RPS')
+modes_order = ['Memory', 'Periodic', 'Strong']
+existing_modes = [m for m in modes_order if m in write_pivot.index]
+write_pivot = write_pivot.reindex(existing_modes)
+
+read_df = df[(df['Operation'] == 'GET') & (df['Mode'] == 'Memory')]
+read_pivot = read_df.pivot(index='Mode', columns='Backend', values='RPS')
+
+mem_df = df[(df['Operation'] == 'SET') & (df['Mode'] == 'Memory')]
+mem_pivot = mem_df.pivot(index='Mode', columns='Backend', values='MaxMemory(MB)')
+
+# Plotting
+fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 6), gridspec_kw={'width_ratios': [3, 1, 1]})
+
+# Plot 1: Write Performance
+write_pivot.plot(kind='bar', ax=ax1, width=0.9, rot=0, legend=True)
+ax1.set_title('Write Performance (SET)')
+ax1.set_ylabel('Requests Per Second (RPS)')
+ax1.set_xlabel('Persistence Mode')
+ax1.grid(axis='y', linestyle='--', alpha=0.7)
+ax1.legend(title='Backend', loc='upper right')
+annotate_bars(ax1)
+
+# Plot 2: Read Performance
+read_pivot.plot(kind='bar', ax=ax2, width=0.9, rot=0, legend=False)
+ax2.set_title('Read Performance (GET)')
+ax2.set_xlabel('Persistence Mode')
+ax2.grid(axis='y', linestyle='--', alpha=0.7)
+annotate_bars(ax2)
+
+# Plot 3: Memory Usage
+mem_pivot.plot(kind='bar', ax=ax3, width=0.9, rot=0, legend=False)
+ax3.set_title('Peak Memory Usage')
+ax3.set_ylabel('Megabytes (MB)')
+ax3.set_xlabel('Persistence Mode')
+ax3.grid(axis='y', linestyle='--', alpha=0.7)
+annotate_bars(ax3)
+
+# Increase y-limit to fit vertical labels
+for ax in (ax1, ax2, ax3):
+    ylim = ax.get_ylim()
+    ax.set_ylim(0, ylim[1] * 1.15)
+
+plt.suptitle('TQSession Performance Benchmark', fontsize=16)
+plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+plt.savefig('getset_benchmark.png', dpi=150, bbox_inches='tight')
+print(f"Saved: getset_benchmark.png")
+EOF
+
 echo ""
 echo "Done!"

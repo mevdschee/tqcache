@@ -1,0 +1,11 @@
+Mode,Backend,Protocol,Operation,RPS,TimePerReq(ms),MaxMemory(MB)
+Memory,TQSession,memcache,SET,64787.67,0.0154,39
+Memory,TQSession,memcache,GET,107223.80,0.0093,39
+Memory,Redis,redis,SET,90014.38,0.0111,768
+Memory,Redis,redis,GET,116486.72,0.0086,768
+Memory,Memcached,memcache,SET,141235.66,0.0071,683
+Memory,Memcached,memcache,GET,304117.90,0.0033,683
+Periodic,TQSession,memcache,SET,60791.20,0.0164,38
+Periodic,TQSession,memcache,GET,114947.68,0.0087,38
+Periodic,Redis,redis,SET,52757.12,0.0190,783
+Periodic,Redis,redis,GET,110815.18,0.0090,783
