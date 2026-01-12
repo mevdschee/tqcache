@@ -8,9 +8,7 @@ with disk-based persistence, making it ideal for session storage that survives r
 - **Persistent Storage**: Data stored on disk, survives server restarts
 - **Memcached Compatible**: Works with PHP's native `memcached` session handler
 - **Protocol Support**: Both Memcached text and binary protocols
-- **TTL Support**: Millisecond-precision key expiration
-- **CAS Operations**: Compare-and-swap for atomic updates
-- **Single-worker architecture**: Simple and predictable performance
+- **Continuous Defragmentation**: Always compact files on disk
 
 ## Requirements
 
