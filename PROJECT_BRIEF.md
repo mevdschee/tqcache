@@ -44,16 +44,16 @@ Each record is exactly **1060 bytes** at offset `keyId * 1060`:
          Total: 1060 bytes per record
 ```
 
-| Field          | Size    | Description                                      |
-|----------------|---------|--------------------------------------------------|
-| `free`         | 1 byte  | `0x00` = in use, `0x01` = deleted/free |
-| `keyLen`       | 2 bytes | Actual key length (uint16, 0-1024) |
-| `key`          | 1024 bytes | Key string, null-padded |
-| `lastAccessed` | 8 bytes | Unix timestamp (int64), for LRU |
-| `cas`          | 8 bytes | CAS token (uint64) |
+| Field          | Size    | Description                                               |
+|----------------|---------|-----------------------------------------------------------|
+| `free`         | 1 byte  | `0x00` = in use, `0x01` = deleted/free                    |
+| `keyLen`       | 2 bytes | Actual key length (uint16, 0-1024)                        |
+| `key`          | 1024 bytes | Key string, null-padded                                |
+| `lastAccessed` | 8 bytes | Unix timestamp (int64), for LRU                           |
+| `cas`          | 8 bytes | CAS token (uint64)                                        |
 | `expiry`       | 8 bytes | Unix timestamp in **milliseconds** (int64), 0 = no expiry |
-| `bucket`       | 1 byte  | Data bucket index (0-15) |
-| `slotIdx`      | 8 bytes | Slot index within the bucket (int64) |
+| `bucket`       | 1 byte  | Data bucket index (0-15)                                  |
+| `slotIdx`      | 8 bytes | Slot index within the bucket (int64)                      |
 
 **keyId** = record index = file offset / 1060
 
