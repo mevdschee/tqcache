@@ -86,7 +86,7 @@ func (w *Worker) recover() error {
 		return err
 	}
 
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	for keyId := int64(0); keyId < keyCount; keyId++ {
 		rec, err := w.storage.ReadKeyRecord(keyId)
@@ -229,7 +229,7 @@ func (w *Worker) handleGet(req *Request) *Response {
 	}
 
 	// Check expiry
-	if entry.Expiry > 0 && entry.Expiry <= time.Now().Unix() {
+	if entry.Expiry > 0 && entry.Expiry <= time.Now().UnixMilli() {
 		w.deleteEntry(entry)
 		return &Response{Err: ErrKeyNotFound}
 	}
@@ -294,9 +294,9 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 	now := time.Now()
 	var expiry int64
 	if ttl > 0 {
-		expiry = now.Add(ttl).Unix()
+		expiry = now.Add(ttl).UnixMilli()
 	} else if w.defaultExpiry > 0 {
-		expiry = now.Add(w.defaultExpiry).Unix()
+		expiry = now.Add(w.defaultExpiry).UnixMilli()
 	}
 
 	// Check if key exists
@@ -399,7 +399,7 @@ func (w *Worker) handleTouch(req *Request) *Response {
 	now := time.Now()
 	var expiry int64
 	if req.TTL > 0 {
-		expiry = now.Add(req.TTL).Unix()
+		expiry = now.Add(req.TTL).UnixMilli()
 	}
 
 	// Update key record
@@ -593,7 +593,7 @@ func (w *Worker) handleStats(req *Request) *Response {
 }
 
 func (w *Worker) cleanupExpired() {
-	now := time.Now().Unix()
+	now := time.Now().UnixMilli()
 
 	// Peek at expired entries and delete them properly
 	for {

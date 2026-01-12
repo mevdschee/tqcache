@@ -1,7 +1,10 @@
 package tqsession
 
 import (
+	"fmt"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -169,6 +172,68 @@ func TestCas(t *testing.T) {
 	if string(val) != "updated" {
 		t.Errorf("Expected 'updated', got '%s'", val)
 	}
+}
+
+func TestCasConcurrency(t *testing.T) {
+	c, cleanup := setupTestCache(t)
+	defer cleanup()
+
+	const numGoroutines = 100
+	const key = "counter"
+
+	// Initialize counter to 0
+	c.Set(key, []byte("0"), 0)
+
+	// Launch goroutines that each increment the counter using CAS
+	var wg sync.WaitGroup
+	successCount := int64(0)
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			// Each goroutine tries to increment until it succeeds
+			for {
+				// Get current value and CAS token
+				val, cas, err := c.Get(key)
+				if err != nil {
+					continue
+				}
+
+				// Parse current value
+				current := 0
+				fmt.Sscanf(string(val), "%d", &current)
+
+				// Try to increment with CAS
+				newVal := fmt.Sprintf("%d", current+1)
+				_, err = c.Cas(key, []byte(newVal), 0, cas)
+				if err == nil {
+					// CAS succeeded, increment success counter
+					atomic.AddInt64(&successCount, 1)
+					return
+				}
+				// CAS failed (concurrent modification), retry
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify final counter value equals number of goroutines
+	val, _, _ := c.Get(key)
+	finalValue := 0
+	fmt.Sscanf(string(val), "%d", &finalValue)
+
+	if finalValue != numGoroutines {
+		t.Errorf("Expected counter=%d, got %d (CAS race condition!)", numGoroutines, finalValue)
+	}
+
+	if successCount != numGoroutines {
+		t.Errorf("Expected %d successful CAS operations, got %d", numGoroutines, successCount)
+	}
+
+	t.Logf("CAS concurrency test passed: %d goroutines, final counter=%d", numGoroutines, finalValue)
 }
 
 func TestDelete(t *testing.T) {
@@ -414,8 +479,8 @@ func TestExpiry(t *testing.T) {
 	c, cleanup := setupTestCache(t)
 	defer cleanup()
 
-	// Set a key with TTL (use >= 2s to reliably cross Unix second boundary)
-	cas, setErr := c.Set("expiry_key", []byte("expiry_value"), 2*time.Second)
+	// Set a key with short TTL (now works with millisecond precision)
+	cas, setErr := c.Set("expiry_key", []byte("expiry_value"), 200*time.Millisecond)
 	if setErr != nil {
 		t.Fatalf("Set failed: %v", setErr)
 	}
@@ -432,8 +497,8 @@ func TestExpiry(t *testing.T) {
 		t.Errorf("Expected 'expiry_value', got '%s'", val)
 	}
 
-	// Wait for expiry (TTL + buffer to cross second boundary)
-	time.Sleep(2500 * time.Millisecond)
+	// Wait for expiry
+	time.Sleep(300 * time.Millisecond)
 
 	// Should be gone due to expiry check in Get
 	_, _, err = c.Get("expiry_key")

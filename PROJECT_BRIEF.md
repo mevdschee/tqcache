@@ -50,7 +50,7 @@ Each record is exactly **1058 bytes** at offset `keyId * 1058`:
 | `key` | 1024 bytes | Key string, null-padded |
 | `lastAccessed` | 8 bytes | Unix timestamp (int64), for LRU |
 | `cas` | 8 bytes | CAS token (uint64) |
-| `expiry` | 8 bytes | Unix timestamp (int64), 0 = no expiry |
+| `expiry` | 8 bytes | Unix timestamp in **milliseconds** (int64), 0 = no expiry |
 | `bucket` | 1 byte | Data bucket index (0-15) |
 | `slotIdx` | 8 bytes | Slot index within the bucket (int64) |
 
