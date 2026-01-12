@@ -199,14 +199,14 @@ for col in ['Mode', 'Backend', 'Protocol', 'Operation']:
 # Prepare Data
 write_df = df[df['Operation'] == 'SET']
 write_pivot = write_df.pivot(index='Mode', columns='Backend', values='RPS')
-modes_order = ['Memory', 'Periodic', 'Strong']
+modes_order = ['none', 'periodic', 'always']
 existing_modes = [m for m in modes_order if m in write_pivot.index]
 write_pivot = write_pivot.reindex(existing_modes)
 
-read_df = df[(df['Operation'] == 'GET') & (df['Mode'] == 'Memory')]
+read_df = df[(df['Operation'] == 'GET') & (df['Mode'] == 'none')]
 read_pivot = read_df.pivot(index='Mode', columns='Backend', values='RPS')
 
-mem_df = df[(df['Operation'] == 'SET') & (df['Mode'] == 'Memory')]
+mem_df = df[(df['Operation'] == 'SET') & (df['Mode'] == 'none')]
 mem_pivot = mem_df.pivot(index='Mode', columns='Backend', values='MaxMemory(MB)')
 
 # Plotting
