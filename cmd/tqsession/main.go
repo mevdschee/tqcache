@@ -11,13 +11,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mevdschee/tqsession/internal/config"
 	"github.com/mevdschee/tqsession/pkg/server"
 	"github.com/mevdschee/tqsession/pkg/tqsession"
 )
 
 func main() {
+	configFile := flag.String("config", "", "Path to config file (INI format)")
 	dataDir := flag.String("data-dir", "data", "Directory for data files")
-	port := flag.String("port", ":11211", "Port to listen on")
+	listen := flag.String("listen", ":11211", "Address to listen on ([host]:port)")
 	syncMode := flag.String("sync-mode", "periodic", "Sync mode: none, periodic")
 	syncInterval := flag.Duration("sync-interval", time.Second, "Sync interval for periodic fsync")
 	defaultTTL := flag.Duration("default-ttl", 0, "Default TTL for keys without explicit expiry (0 = no expiry)")
@@ -28,25 +30,46 @@ func main() {
 	}
 	flag.Parse()
 
-	// Parse sync strategy
-	var syncStrategy tqsession.SyncStrategy
-	switch *syncMode {
-	case "none":
-		syncStrategy = tqsession.SyncNone
-	case "periodic":
-		syncStrategy = tqsession.SyncPeriodic
-	default:
-		log.Fatalf("Invalid sync-mode: %s (valid: none, periodic)", *syncMode)
-	}
+	var cfg tqsession.Config
+	var serverPort string
 
-	cfg := tqsession.Config{
-		DataDir:       *dataDir,
-		DefaultExpiry: *defaultTTL,
-		MaxKeySize:    250,
-		MaxValueSize:  1024 * 1024, // 1MB
-		MaxDataSize:   *maxDataSize,
-		SyncStrategy:  syncStrategy,
-		SyncInterval:  *syncInterval,
+	// Load config file if specified
+	if *configFile != "" {
+		fileCfg, err := config.Load(*configFile)
+		if err != nil {
+			log.Fatalf("Failed to load config file: %v", err)
+		}
+		cfg, err = fileCfg.ToTQSessionConfig()
+		if err != nil {
+			log.Fatalf("Invalid config: %v", err)
+		}
+		serverPort = fileCfg.Server.Listen
+		if serverPort == "" {
+			serverPort = ":11211"
+		}
+		log.Printf("Loaded config from %s", *configFile)
+	} else {
+		// Use command-line flags
+		var syncStrategy tqsession.SyncStrategy
+		switch *syncMode {
+		case "none":
+			syncStrategy = tqsession.SyncNone
+		case "periodic":
+			syncStrategy = tqsession.SyncPeriodic
+		default:
+			log.Fatalf("Invalid sync-mode: %s (valid: none, periodic)", *syncMode)
+		}
+
+		cfg = tqsession.Config{
+			DataDir:       *dataDir,
+			DefaultExpiry: *defaultTTL,
+			MaxKeySize:    1024,             // 1KB max key size
+			MaxValueSize:  64 * 1024 * 1024, // 64MB
+			MaxDataSize:   *maxDataSize,
+			SyncStrategy:  syncStrategy,
+			SyncInterval:  *syncInterval,
+		}
+		serverPort = *listen
 	}
 
 	cache, err := tqsession.New(cfg)
@@ -55,7 +78,7 @@ func main() {
 	}
 	defer cache.Close()
 
-	srv := server.New(cache, *port)
+	srv := server.New(cache, serverPort)
 	go func() {
 		if err := srv.Start(); err != nil {
 			log.Fatalf("Server failed: %v", err)
@@ -74,7 +97,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	log.Println("TQSession started")
+	log.Printf("TQSession started on %s", serverPort)
 	<-quit
 	log.Println("Shutting down TQSession...")
 }

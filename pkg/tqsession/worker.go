@@ -338,6 +338,7 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 	// Write key record (including bucket/slotIdx for recovery)
 	keyRec := &KeyRecord{
 		Free:         FlagInUse,
+		KeyLen:       uint16(len(key)),
 		LastAccessed: now.Unix(),
 		Cas:          cas,
 		Expiry:       expiry,

@@ -40,18 +40,43 @@ tqsession [options]
 
 | Flag | Default | Description |
 |------|---------|-------------|
+| `-config` | | Path to INI config file (overrides other flags) |
 | `-data-dir` | `data` | Directory for persistent data files |
-| `-port` | `:11211` | Port to listen on (Memcached default) |
+| `-listen` | `:11211` | Address to listen on (`[host]:port`) |
 | `-sync-mode` | `periodic` | Sync mode: `none`, `periodic` |
 | `-sync-interval` | `1s` | Interval between fsync calls (when periodic) |
 | `-default-ttl` | `0` | Default TTL for keys (`0` = no expiry) |
 | `-max-data-size` | `67108864` | Max live data size in bytes for LRU eviction (`0` = unlimited) |
 
+**Fixed limits:** Max key size is 1KB, max value size is 64MB.
+
+### Config File
+
+You can use an INI-style config file instead of CLI flags:
+
+```ini
+# tqsession.conf
+[server]
+port = :11211
+
+[storage]
+data_dir = data
+default_expiry = 0s
+max_data_size = 64MB
+sync_strategy = periodic
+sync_interval = 1s
+```
+
+See [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf) for a complete example.
+
 ### Examples
 
 ```bash
-# Start with defaults (port 11211, data in ./data/, 64MB limit)
+# Start with defaults
 tqsession
+
+# Use config file
+tqsession -config /etc/tqsession.conf
 
 # Custom port and data directory
 tqsession -port :11212 -data-dir /var/lib/tqsession
@@ -61,9 +86,6 @@ tqsession -default-ttl 24h
 
 # Increase max data size to 1GB
 tqsession -max-data-size 1073741824
-
-# Faster sync (more durability, lower performance)
-tqsession -sync-interval 100ms
 ```
 
 ## PHP Configuration
@@ -94,8 +116,8 @@ TQSession uses a **single-worker architecture** for simplicity and predictable p
 
 ### Storage Format
 
-**Keys file** (`keys`): Fixed 1058-byte records
-- Key string (1024 bytes), CAS token, expiry (milliseconds), bucket/slot pointers
+**Keys file** (`keys`): Fixed 1060-byte records
+- 2-byte key length, key string (1024 bytes), CAS, expiry (ms), bucket/slot pointers
 
 **Data files** (`data_00` - `data_15`): 16 size-bucketed files (1KB → 64MB)
 - Each slot stores: free flag + length + data

@@ -14,13 +14,11 @@ import (
 // It maps to the INI config file and converts to tqsession.Config.
 type Config struct {
 	Server struct {
-		Port string
+		Listen string // Address to listen on (e.g., :11211 or localhost:11211)
 	}
 	Storage struct {
 		DataDir       string
 		DefaultExpiry string // e.g., "0s", "1h"
-		MaxKeySize    string // e.g., "250B"
-		MaxValueSize  string // e.g., "1MB"
 		MaxDataSize   string // e.g., "64MB" - max live data before LRU eviction
 		SyncStrategy  string // "none", "periodic"
 		SyncInterval  string // e.g., "1s"
@@ -69,8 +67,8 @@ func parseINI(data string) (*Config, error) {
 		switch currentSection {
 		case "server":
 			switch key {
-			case "port":
-				cfg.Server.Port = value
+			case "listen":
+				cfg.Server.Listen = value
 			}
 		case "storage":
 			switch key {
@@ -78,10 +76,6 @@ func parseINI(data string) (*Config, error) {
 				cfg.Storage.DataDir = value
 			case "default_expiry":
 				cfg.Storage.DefaultExpiry = value
-			case "max_key_size":
-				cfg.Storage.MaxKeySize = value
-			case "max_value_size":
-				cfg.Storage.MaxValueSize = value
 			case "max_data_size":
 				cfg.Storage.MaxDataSize = value
 			case "sync_strategy":
@@ -109,22 +103,6 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 			return cfg, fmt.Errorf("invalid default_expiry: %w", err)
 		}
 		cfg.DefaultExpiry = dur
-	}
-
-	if c.Storage.MaxKeySize != "" {
-		size, err := parseBytes(c.Storage.MaxKeySize)
-		if err != nil {
-			return cfg, fmt.Errorf("invalid max_key_size: %w", err)
-		}
-		cfg.MaxKeySize = size
-	}
-
-	if c.Storage.MaxValueSize != "" {
-		size, err := parseBytes(c.Storage.MaxValueSize)
-		if err != nil {
-			return cfg, fmt.Errorf("invalid max_value_size: %w", err)
-		}
-		cfg.MaxValueSize = size
 	}
 
 	if c.Storage.MaxDataSize != "" {

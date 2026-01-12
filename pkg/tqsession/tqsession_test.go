@@ -897,3 +897,93 @@ func TestExpiredEvictedFirst(t *testing.T) {
 
 	t.Log("Expired items correctly evicted before LRU items")
 }
+
+func TestKeyWithNullBytes(t *testing.T) {
+	c, cleanup := setupTestCache(t)
+	defer cleanup()
+
+	// Create a key with null bytes (3 null bytes)
+	keyWithNulls := "\x00\x00\x00"
+	value := []byte("value for null key")
+
+	// Set should work
+	_, err := c.Set(keyWithNulls, value, 0)
+	if err != nil {
+		t.Fatalf("Set with null byte key failed: %v", err)
+	}
+
+	// Get should return the same value
+	retrieved, _, err := c.Get(keyWithNulls)
+	if err != nil {
+		t.Fatalf("Get with null byte key failed: %v", err)
+	}
+	if string(retrieved) != string(value) {
+		t.Errorf("Expected %q, got %q", value, retrieved)
+	}
+
+	// A different key (e.g., 4 nulls) should not match
+	_, _, err = c.Get("\x00\x00\x00\x00")
+	if err == nil {
+		t.Errorf("Different null key should not match")
+	}
+
+	// Key with null in middle should work
+	keyWithMiddleNull := "abc\x00def"
+	_, err = c.Set(keyWithMiddleNull, []byte("middle null"), 0)
+	if err != nil {
+		t.Fatalf("Set with middle null failed: %v", err)
+	}
+
+	retrieved, _, err = c.Get(keyWithMiddleNull)
+	if err != nil {
+		t.Fatalf("Get with middle null failed: %v", err)
+	}
+	if string(retrieved) != "middle null" {
+		t.Errorf("Expected 'middle null', got %q", retrieved)
+	}
+
+	t.Log("Keys with null bytes work correctly")
+}
+
+func TestKeyNotTrimmed(t *testing.T) {
+	c, cleanup := setupTestCache(t)
+	defer cleanup()
+
+	// Key with trailing spaces
+	keyWithSpaces := "mykey   "
+	value := []byte("value with spaces")
+
+	_, err := c.Set(keyWithSpaces, value, 0)
+	if err != nil {
+		t.Fatalf("Set with trailing spaces failed: %v", err)
+	}
+
+	// Get with exact key (including spaces) should work
+	retrieved, _, err := c.Get(keyWithSpaces)
+	if err != nil {
+		t.Fatalf("Get with exact key failed: %v", err)
+	}
+	if string(retrieved) != string(value) {
+		t.Errorf("Expected %q, got %q", value, retrieved)
+	}
+
+	// Get with trimmed key should NOT work (different key)
+	_, _, err = c.Get("mykey")
+	if err == nil {
+		t.Errorf("Trimmed key should not match key with trailing spaces")
+	}
+
+	// Key with leading spaces
+	keyLeading := "   leading"
+	_, err = c.Set(keyLeading, []byte("leading spaces"), 0)
+	if err != nil {
+		t.Fatalf("Set with leading spaces failed: %v", err)
+	}
+
+	_, _, err = c.Get("leading")
+	if err == nil {
+		t.Errorf("Key without leading spaces should not match")
+	}
+
+	t.Log("Keys are preserved exactly without trimming")
+}
