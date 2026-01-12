@@ -38,15 +38,15 @@ tqsession [options]
 
 ### Command-Line Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-config` | | Path to INI config file (overrides other flags) |
-| `-data-dir` | `data` | Directory for persistent data files |
-| `-listen` | `:11211` | Address to listen on (`[host]:port`) |
-| `-sync-mode` | `periodic` | Sync mode: `none`, `periodic` |
-| `-sync-interval` | `1s` | Interval between fsync calls (when periodic) |
-| `-default-ttl` | `0` | Default TTL for keys (`0` = no expiry) |
-| `-max-data-size` | `67108864` | Max live data size in bytes for LRU eviction (`0` = unlimited) |
+| Flag             | Default     | Description                                                    |
+|------------------|-------------|----------------------------------------------------------------|
+| `-config`        |             | Path to INI config file (overrides other flags)                |
+| `-data-dir`      | `data`      | Directory for persistent data files                            |
+| `-listen`        | `:11211`    | Address to listen on (`[host]:port`)                           |
+| `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`                                  |
+| `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
+| `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                         |
+| `-max-data-size` | `67108864`  | Max live data size in bytes for LRU eviction (`0` = unlimited) |
 
 **Fixed limits:** Max key size is 1KB, max value size is 64MB.
 
@@ -104,33 +104,6 @@ php_admin_value[session.save_handler] = memcached
 php_admin_value[session.save_path] = "localhost:11211"
 ```
 
-## Architecture
-
-TQSession uses a **single-worker architecture** for simplicity and predictable performance:
-
-| Goroutine | Responsibility |
-|-----------|----------------|
-| **Server** | Accepts client connections, routes to Storage worker |
-| **Storage** | Handles all file operations sequentially (no locks needed) |
-| **Sync** | Calls `fsync` periodically (configurable interval) |
-
-### Storage Format
-
-**Keys file** (`keys`): Fixed 1060-byte records
-- 2-byte key length, key string (1024 bytes), CAS, expiry (ms), bucket/slot pointers
-
-**Data files** (`data_00` - `data_15`): 16 size-bucketed files (1KB → 64MB)
-- Each slot stores: free flag + length + data
-
-### In-Memory Structures
-
-- **B-tree index**: O(log n) key lookups
-- **Expiry min-heap**: Efficient TTL cleanup without scanning
-- **LRU list**: Evicts least recently used items when size limit reached (expired first)
-- **Free lists**: O(1) slot allocation via stack-based recycling
-
-See [PROJECT_BRIEF.md](PROJECT_BRIEF.md) for detailed architecture.
-
 ## Benchmarks
 
 Run the included benchmark:
@@ -154,6 +127,29 @@ A pprof server runs on `localhost:6062` for profiling:
 go tool pprof http://localhost:6062/debug/pprof/profile?seconds=30
 ```
 
-## License
+## Architecture
 
-MIT License - see [LICENSE](LICENSE) file.
+TQSession uses a **single-worker architecture** for simplicity and predictable performance:
+
+| Goroutine   | Responsibility                                             |
+|-------------|------------------------------------------------------------|
+| **Server**  | Accepts client connections, routes to Storage worker       |
+| **Storage** | Handles all file operations sequentially (no locks needed) |
+| **Sync**    | Calls `fsync` periodically (configurable interval)         |
+
+### Storage Format
+
+**Keys file** (`keys`): Fixed 1060-byte records
+- 2-byte key length, key string (1024 bytes), CAS, expiry (ms), bucket/slot pointers
+
+**Data files** (`data_00` - `data_15`): 16 size-bucketed files (1KB → 64MB)
+- Each slot stores: free flag + length + data
+
+### In-Memory Structures
+
+- **B-tree index**: O(log n) key lookups
+- **Expiry min-heap**: Efficient TTL cleanup without scanning
+- **LRU list**: Evicts least recently used items when size limit reached (expired first)
+- **Free lists**: O(1) slot allocation via stack-based recycling
+
+See [PROJECT_BRIEF.md](PROJECT_BRIEF.md) for detailed architecture.
