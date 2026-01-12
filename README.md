@@ -77,17 +77,17 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 ![Performance Benchmark](benchmarks/getset/getset_benchmark.png)
 
 ### Performance Highlights
-- **Write (SET)**: TQSession outperforms Redis (~110k RPS vs ~46k RPS) in writing persistence-backed data (Periodic Sync).
-- **Read (GET)**: TQSession outperforms Redis (~150k RPS vs ~100k RPS) in reading from memory.
-- **Memory Efficiency**: TQSession uses less memory than Redis (~56MB vs ~769MB) as it only stores keys+offsets in RAM.
+- **Write (SET)**: TQSession outperforms Redis (~104k RPS vs ~52k RPS) in writing persistence-backed data (Periodic Sync).
+- **Read (GET)**: TQSession outperforms Redis (~137k RPS vs ~114k RPS) in reading from memory.
+- **Memory Efficiency**: TQSession uses 14x less memory than Redis (~58MB vs ~784MB) as it only stores keys+offsets in RAM.
 
 ### Summary Table
 
 | Reference | SET (RPS) | GET (RPS) | Memory (MB) |
 | :--- | :--- | :--- | :--- |
-| **Memcached** (Memory) | ~143k | ~302k | ~682MB |
-| **Redis** (Periodic) | ~46k | ~100k | ~769MB |
-| **TQSession** (Periodic) | ~110k | ~150k | ~56MB |
+| **Memcached** (Memory) | ~138k | ~303k | ~681MB |
+| **Redis** (Periodic) | ~52k | ~114k | ~784MB |
+| **TQSession** (Periodic) | ~104k | ~137k | ~58MB |
 
 ## Testing
 
