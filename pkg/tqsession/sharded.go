@@ -49,8 +49,12 @@ func NewSharded(cfg Config, shardCount int) (*ShardedCache, error) {
 
 		shardCfg := cfg
 		shardCfg.DataDir = shardDir
-		// Disable per-shard sync workers - we'll run one at the top level
-		shardCfg.SyncStrategy = SyncNone
+		// For SyncPeriodic: disable per-shard workers, run one at top level
+		// For SyncAlways: keep it so fsync happens after every write
+		// For SyncNone: keep as-is
+		if cfg.SyncStrategy == SyncPeriodic {
+			shardCfg.SyncStrategy = SyncNone // Disable per-shard sync worker
+		}
 
 		shard, err := New(shardCfg)
 		if err != nil {
