@@ -95,14 +95,6 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 go test ./pkg/tqsession/...
 ```
 
-## Profiling
-
-A pprof server runs on `localhost:6062` for profiling:
-
-```bash
-go tool pprof http://localhost:6062/debug/pprof/profile?seconds=30
-```
-
 ## Architecture
 
 TQSession stores session data on disk in a fixed-size record formats and

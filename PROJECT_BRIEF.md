@@ -13,15 +13,19 @@ with standard clients.
 
 ### Concurrency Model
 
-Uses a **single-worker architecture** for storage and sync, with no locks:
+Uses a **sharded architecture** with RWMutex per shard for concurrent access:
 
-| Goroutine   | Responsibility                                          |
-|-------------|---------------------------------------------------------|
-| **Server**  | Accepts client connections, talks to Storage worker     |
-| **Storage** | Handles all file operations (reads/writes) sequentially |
-| **Sync**    | Calls `fsync` periodically (interval configurable)      |
+| Component         | Description                                      |
+|-------------------|--------------------------------------------------|
+| **ShardedCache**  | Routes keys to shards via FNV-1a hash            |
+| **Shard (Cache)** | Independent cache with own mutex, index, storage |
+| **Storage**       | Per-shard files with bucket-level RWMutex        |
+| **Sync Worker**   | Periodic fsync across all shards (configurable)  |
 
-Operations are sent to the storage worker via channels, eliminating lock contention.
+**Sharding benefits**:
+- 16 shards (default) allow parallel access to different keys
+- RWMutex allows concurrent reads within each shard
+- Write lock only held briefly for index updates
 
 ---
 
@@ -129,9 +133,9 @@ Instead of free lists, uses **continuous defragmentation**:
 
 ## Success Criteria
 1.  **Persistence**: Data survives process restarts
-2.  **Performance**: Fast lookups via B-Tree, 100k RPS GET, 50k RPS SET (hot keys)
+2.  **Performance**: Fast lookups via B-Tree, 100k+ RPS SET/GET with sharding
 3.  **Protocol**: Compatible with Memcached clients (Text and Binary protocols)
 4.  **Simplicity**: Easy to understand and maintain, small code base
 5.  **Compatibility**: Works with PHP Memcached session handler
 
-**Files**: `keys` and `data` in the configured data directory.
+**Files**: Each shard has its own folder (`shard_00/` to `shard_15/`) containing `keys` and `data_*` files.
