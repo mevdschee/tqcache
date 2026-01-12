@@ -114,6 +114,7 @@ listen = :11221
 
 [storage]
 data-dir = /tmp/tqsession-bench
+shards = 8
 sync-mode = $SYNC_MODE
 sync-interval = $SYNC_INTERVAL
 max-data-size = 1GB
@@ -175,13 +176,13 @@ CONF
 }
 
 # 1. Mode: none
-run_benchmark_set "none" "1s" "--save \"\" --appendonly no" "true"
+#run_benchmark_set "none" "1s" "--save \"\" --appendonly no" "true"
 
 # 2. Mode: periodic (1s sync)  
 run_benchmark_set "periodic" "1s" "--appendonly yes --appendfsync everysec" "false"
 
 # 3. Mode: always (fsync every write)
-run_benchmark_set "always" "1s" "--appendonly yes --appendfsync always" "false"
+#run_benchmark_set "always" "1s" "--appendonly yes --appendfsync always" "false"
 
 echo "---------------------------------------------------"
 echo "Benchmark completed. Results saved to $OUTPUT"

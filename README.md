@@ -43,9 +43,10 @@ tqsession [options]
 | `-config`        |             | Path to INI config file (overrides other flags)                |
 | `-listen`        | `:11211`    | Address to listen on (`[host]:port`)                           |
 | `-data-dir`      | `data`      | Directory for persistent data files                            |
+| `-shards`        | `16`        | Number of shards for parallel access                           |
 | `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                         |
-| `-max-ttl`       | `0`         | Maximum TTL cap for any key (`0` = unlimited)                  |
-| `-max-data-size` | `0`         | Max live data size in bytes for LRU eviction (`0` = unlimited) |
+| `-max-ttl`       | `24h`       | Maximum TTL cap for any key (`0` = unlimited)                  |
+| `-max-data-size` | `64MB`      | Max live data size in bytes for LRU eviction (`0` = unlimited) |
 | `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                        |
 | `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
 
@@ -64,14 +65,29 @@ session.save_path = "localhost:11211"
 
 NB: Set "max-data-size = 0" and "max-ttl = 24h" to prevent data loss and prevent disk space exhaustion.
 
-## Benchmarks
+## Performance
 
-Run the included benchmark:
+**TQSession vs Redis vs Memcached**
 
-```bash
-cd benchmarks/getset
-./getset_benchmark.sh
-```
+Benchmarks were run on a local development environment (Linux, Loopback).
+100,000 keys were used for the benchmark, each with a size of 1KB.
+
+### Benchmark Results
+
+![Performance Benchmark](benchmarks/getset/getset_benchmark.png)
+
+### Performance Highlights
+- **Write (SET)**: TQSession outperforms Redis (~110k RPS vs ~46k RPS) in writing persistence-backed data (Periodic Sync).
+- **Read (GET)**: TQSession outperforms Redis (~150k RPS vs ~100k RPS) in reading from memory.
+- **Memory Efficiency**: TQSession uses less memory than Redis (~56MB vs ~769MB) as it only stores keys+offsets in RAM.
+
+### Summary Table
+
+| Reference | SET (RPS) | GET (RPS) | Memory (MB) |
+| :--- | :--- | :--- | :--- |
+| **Memcached** (Memory) | ~143k | ~302k | ~682MB |
+| **Redis** (Periodic) | ~46k | ~100k | ~769MB |
+| **TQSession** (Periodic) | ~110k | ~150k | ~56MB |
 
 ## Testing
 

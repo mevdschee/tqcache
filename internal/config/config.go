@@ -17,12 +17,13 @@ type Config struct {
 		Listen string // Address to listen on (e.g., :11211 or localhost:11211)
 	}
 	Storage struct {
-		DataDir       string
-		DefaultExpiry string // e.g., "0s", "1h"
-		MaxTTL        string // e.g., "0s" (unlimited), "24h"
-		MaxDataSize   string // e.g., "64MB" - max live data before LRU eviction
-		SyncStrategy  string // "none", "periodic"
-		SyncInterval  string // e.g., "1s"
+		DataDir      string
+		Shards       string // e.g., "16"
+		DefaultTTL   string // e.g., "0s", "1h"
+		MaxTTL       string // e.g., "0s" (unlimited), "24h"
+		MaxDataSize  string // e.g., "64MB" - max live data before LRU eviction
+		SyncStrategy string // "none", "periodic"
+		SyncInterval string // e.g., "1s"
 	}
 }
 
@@ -75,8 +76,10 @@ func parseINI(data string) (*Config, error) {
 			switch key {
 			case "data-dir":
 				cfg.Storage.DataDir = value
+			case "shards":
+				cfg.Storage.Shards = value
 			case "default-ttl":
-				cfg.Storage.DefaultExpiry = value
+				cfg.Storage.DefaultTTL = value
 			case "max-ttl":
 				cfg.Storage.MaxTTL = value
 			case "max-data-size":
@@ -100,12 +103,12 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 		cfg.DataDir = c.Storage.DataDir
 	}
 
-	if c.Storage.DefaultExpiry != "" {
-		dur, err := time.ParseDuration(c.Storage.DefaultExpiry)
+	if c.Storage.DefaultTTL != "" {
+		dur, err := time.ParseDuration(c.Storage.DefaultTTL)
 		if err != nil {
 			return cfg, fmt.Errorf("invalid default_expiry: %w", err)
 		}
-		cfg.DefaultExpiry = dur
+		cfg.DefaultTTL = dur
 	}
 
 	if c.Storage.MaxTTL != "" {
@@ -146,6 +149,18 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// Shards returns the configured number of shards (default 16)
+func (c *Config) Shards() int {
+	if c.Storage.Shards == "" {
+		return 16
+	}
+	n, err := strconv.Atoi(c.Storage.Shards)
+	if err != nil || n <= 0 {
+		return 16
+	}
+	return n
 }
 
 func parseBytes64(s string) (int64, error) {

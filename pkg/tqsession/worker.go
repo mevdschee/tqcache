@@ -56,20 +56,20 @@ type Worker struct {
 	nextSlotId [NumBuckets]int64
 	startTime  time.Time
 
-	defaultExpiry time.Duration
-	maxDataSize   int64 // Maximum live data size (0 = unlimited)
-	liveDataSize  int64 // Current live data size in bytes
+	DefaultTTL   time.Duration
+	maxDataSize  int64 // Maximum live data size (0 = unlimited)
+	liveDataSize int64 // Current live data size in bytes
 }
 
-func NewWorker(storage *Storage, defaultExpiry time.Duration, maxDataSize int64) (*Worker, error) {
+func NewWorker(storage *Storage, DefaultTTL time.Duration, maxDataSize int64) (*Worker, error) {
 	w := &Worker{
-		storage:       storage,
-		index:         NewIndex(),
-		reqChan:       make(chan *Request, 1000),
-		stopChan:      make(chan struct{}),
-		startTime:     time.Now(),
-		defaultExpiry: defaultExpiry,
-		maxDataSize:   maxDataSize,
+		storage:     storage,
+		index:       NewIndex(),
+		reqChan:     make(chan *Request, 1000),
+		stopChan:    make(chan struct{}),
+		startTime:   time.Now(),
+		DefaultTTL:  DefaultTTL,
+		maxDataSize: maxDataSize,
 	}
 
 	// Recover state from disk
@@ -291,8 +291,8 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 	var expiry int64
 	if ttl > 0 {
 		expiry = now.Add(ttl).UnixMilli()
-	} else if w.defaultExpiry > 0 {
-		expiry = now.Add(w.defaultExpiry).UnixMilli()
+	} else if w.DefaultTTL > 0 {
+		expiry = now.Add(w.DefaultTTL).UnixMilli()
 	}
 
 	// Check if key exists

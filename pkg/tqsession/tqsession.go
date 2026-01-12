@@ -21,27 +21,27 @@ const (
 
 // Config holds the configuration for TQSession
 type Config struct {
-	DataDir       string
-	DefaultExpiry time.Duration
-	MaxTTL        time.Duration // Maximum TTL for any key (0=unlimited)
-	MaxKeySize    int
-	MaxValueSize  int
-	MaxDataSize   int64 // Maximum live data size in bytes before LRU eviction (0=unlimited)
-	SyncStrategy  SyncStrategy
-	SyncInterval  time.Duration
+	DataDir      string
+	DefaultTTL   time.Duration
+	MaxTTL       time.Duration // Maximum TTL for any key (0=unlimited)
+	MaxKeySize   int
+	MaxValueSize int
+	MaxDataSize  int64 // Maximum live data size in bytes before LRU eviction (0=unlimited)
+	SyncStrategy SyncStrategy
+	SyncInterval time.Duration
 }
 
 // DefaultConfig returns sensible defaults
 func DefaultConfig() Config {
 	return Config{
-		DataDir:       "data",
-		DefaultExpiry: 0,
-		MaxTTL:        0, // Unlimited
-		MaxKeySize:    250,
-		MaxValueSize:  1024 * 1024, // 1MB
-		MaxDataSize:   0,           // Unlimited
-		SyncStrategy:  SyncPeriodic,
-		SyncInterval:  1 * time.Second,
+		DataDir:      "data",
+		DefaultTTL:   0,
+		MaxTTL:       24 * time.Hour,
+		MaxKeySize:   1024,             // 1KB max key size
+		MaxValueSize: 64 * 1024 * 1024, // 64MB max value size
+		MaxDataSize:  0,                // Unlimited
+		SyncStrategy: SyncPeriodic,
+		SyncInterval: 1 * time.Second,
 	}
 }
 
@@ -59,11 +59,11 @@ type Cache struct {
 	nextSlotId [NumBuckets]int64
 
 	// State
-	liveDataSize  int64
-	maxDataSize   int64
-	defaultExpiry time.Duration
-	maxTTL        time.Duration
-	StartTime     time.Time
+	liveDataSize int64
+	maxDataSize  int64
+	DefaultTTL   time.Duration
+	maxTTL       time.Duration
+	StartTime    time.Time
 
 	// Sync control
 	stopSync chan struct{}
@@ -78,14 +78,14 @@ func New(cfg Config) (*Cache, error) {
 	}
 
 	c := &Cache{
-		config:        cfg,
-		storage:       storage,
-		index:         NewIndex(),
-		maxDataSize:   cfg.MaxDataSize,
-		defaultExpiry: cfg.DefaultExpiry,
-		maxTTL:        cfg.MaxTTL,
-		stopSync:      make(chan struct{}),
-		StartTime:     time.Now(),
+		config:      cfg,
+		storage:     storage,
+		index:       NewIndex(),
+		maxDataSize: cfg.MaxDataSize,
+		DefaultTTL:  cfg.DefaultTTL,
+		maxTTL:      cfg.MaxTTL,
+		stopSync:    make(chan struct{}),
+		StartTime:   time.Now(),
 	}
 
 	// Recover index from disk
@@ -246,8 +246,8 @@ func (c *Cache) doSet(key string, value []byte, ttl time.Duration, existingCas u
 			ttl = c.maxTTL
 		}
 		expiry = now.Add(ttl).UnixMilli()
-	} else if c.defaultExpiry > 0 {
-		expiry = now.Add(c.defaultExpiry).UnixMilli()
+	} else if c.DefaultTTL > 0 {
+		expiry = now.Add(c.DefaultTTL).UnixMilli()
 	}
 
 	c.mu.Lock()
