@@ -39,17 +39,17 @@ tqcache [options]
 
 ### Command-Line Flags
 
-| Flag             | Default     | Description                                                    |
-|------------------|-------------|----------------------------------------------------------------|
-| `-config`        |             | Path to INI config file (overrides flags), (see [tqcache.conf](cmd/tqcache/tqcache.conf))                |
-| `-listen`        | `:11211`    | Address to listen on (`[host]:port`)                           |
-| `-data-dir`      | `data`      | Directory for persistent data files                            |
-| `-shards`        | `16`        | Number of shards for parallel processing                       |
-| `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                         |
-| `-max-ttl`       | `24h`       | Maximum TTL cap for any key (`0` = unlimited)                  |
-| `-max-data-size` | `64MB`      | Max live data size in bytes for LRU eviction (`0` = unlimited) |
-| `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                        |
-| `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
+| Flag             | Default     | Description                                                       |
+|------------------|-------------|-------------------------------------------------------------------|
+| `-config`        |             | Path to [config file](cmd/tqcache/tqcache.conf) (overrides flags) |
+| `-listen`        | `:11211`    | Address to listen on (`[host]:port`)                              |
+| `-data-dir`      | `data`      | Directory for persistent data files                               |
+| `-shards`        | `16`        | Number of shards for parallel processing                          |
+| `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                            |
+| `-max-ttl`       | `24h`       | Maximum TTL cap for any key (`0` = unlimited)                     |
+| `-max-data-size` | `64MB`      | Max live data size in bytes for LRU eviction (`0` = unlimited)    |
+| `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                           |
+| `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                      |
 
 **Fixed limits:** Max key size is 1KB. Max value size is 64MB.
 
