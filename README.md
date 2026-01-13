@@ -11,7 +11,7 @@ with disk-based persistence, making it ideal for session storage that survives r
 - **Faster than Redis**: About 2x faster than Redis in typical cases
 - **Memcached Compatible**: Supports all Memcached commands, including binary protocol
 - **Generous Limits**: Maximum key size is 1KB / Maximum value size is 64MB
-- **Eviction Optional**: Set `max-data-size = 0` to disable eviction
+- **Eviction Optional**: Set `max-data-size = 0` to disable eviction (default)
 - **TTL Enforcement**: Maximum TTL defaults to 24 hours (set to 0 to disable)
 
 ## Requirements
