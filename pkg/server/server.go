@@ -65,8 +65,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	log.Printf("First byte: 0x%x (Binary: %v)", firstByte[0], firstByte[0] == 0x80)
 
-	// Use buffered writer for all responses
-	writer := bufio.NewWriter(conn)
+	// Use buffered writer for all responses (64KB buffer for better batching)
+	writer := bufio.NewWriterSize(conn, 65536)
 
 	if firstByte[0] == 0x80 {
 		s.handleBinary(conn, reader, writer)

@@ -60,20 +60,20 @@ func (s *Server) handleText(reader *bufio.Reader, writer *bufio.Writer) {
 			return
 		case "VERSION":
 			writer.WriteString("VERSION 1.0.0\r\n")
-			writer.Flush()
 		case "STATS":
 			s.handleTextStats(writer)
 		default:
 			writer.WriteString("ERROR\r\n")
-			writer.Flush()
 		}
+
+		// Flush once per command (batched writes)
+		writer.Flush()
 	}
 }
 
 func (s *Server) handleTextStorage(reader *bufio.Reader, writer *bufio.Writer, parts []string, op string) {
 	if len(parts) < 5 {
 		writer.WriteString("CLIENT_ERROR bad data chunk\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -86,7 +86,6 @@ func (s *Server) handleTextStorage(reader *bufio.Reader, writer *bufio.Writer, p
 	value := make([]byte, bytes)
 	if _, err := io.ReadFull(reader, value); err != nil {
 		writer.WriteString("SERVER_ERROR read error\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -120,25 +119,21 @@ func (s *Server) handleTextStorage(reader *bufio.Reader, writer *bufio.Writer, p
 		if err == os.ErrExist || err == os.ErrNotExist {
 			if !noreply {
 				writer.WriteString("NOT_STORED\r\n")
-				writer.Flush()
 			}
 			return
 		}
 		writer.WriteString("SERVER_ERROR " + err.Error() + "\r\n")
-		writer.Flush()
 		return
 	}
 
 	if !noreply {
 		writer.WriteString("STORED\r\n")
-		writer.Flush()
 	}
 }
 
 func (s *Server) handleTextCas(reader *bufio.Reader, writer *bufio.Writer, parts []string) {
 	if len(parts) < 6 {
 		writer.WriteString("CLIENT_ERROR bad command line format\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -148,7 +143,6 @@ func (s *Server) handleTextCas(reader *bufio.Reader, writer *bufio.Writer, parts
 	casToken, err := strconv.ParseUint(parts[5], 10, 64)
 	if err != nil {
 		writer.WriteString("CLIENT_ERROR bad command line format\r\n")
-		writer.Flush()
 		return
 	}
 	noreply := len(parts) > 6 && parts[6] == "noreply"
@@ -157,7 +151,6 @@ func (s *Server) handleTextCas(reader *bufio.Reader, writer *bufio.Writer, parts
 	value := make([]byte, bytes)
 	if _, err := io.ReadFull(reader, value); err != nil {
 		writer.WriteString("SERVER_ERROR read error\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -182,32 +175,27 @@ func (s *Server) handleTextCas(reader *bufio.Reader, writer *bufio.Writer, parts
 		if err == os.ErrExist {
 			if !noreply {
 				writer.WriteString("EXISTS\r\n")
-				writer.Flush()
 			}
 			return
 		}
 		if err == os.ErrNotExist {
 			if !noreply {
 				writer.WriteString("NOT_FOUND\r\n")
-				writer.Flush()
 			}
 			return
 		}
 		writer.WriteString("SERVER_ERROR " + err.Error() + "\r\n")
-		writer.Flush()
 		return
 	}
 
 	if !noreply {
 		writer.WriteString("STORED\r\n")
-		writer.Flush()
 	}
 }
 
 func (s *Server) handleTextGet(writer *bufio.Writer, parts []string, withCas bool) {
 	if len(parts) < 2 {
 		writer.WriteString("ERROR\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -228,13 +216,11 @@ func (s *Server) handleTextGet(writer *bufio.Writer, parts []string, withCas boo
 		}
 	}
 	writer.WriteString("END\r\n")
-	writer.Flush()
 }
 
 func (s *Server) handleTextDelete(writer *bufio.Writer, parts []string) {
 	if len(parts) < 2 {
 		writer.WriteString("CLIENT_ERROR bad command line format\r\n")
-		writer.Flush()
 		return
 	}
 	key := parts[1]
@@ -244,12 +230,10 @@ func (s *Server) handleTextDelete(writer *bufio.Writer, parts []string) {
 	if err == nil {
 		if !noreply {
 			writer.WriteString("DELETED\r\n")
-			writer.Flush()
 		}
 	} else {
 		if !noreply {
 			writer.WriteString("NOT_FOUND\r\n")
-			writer.Flush()
 		}
 	}
 }
@@ -257,7 +241,6 @@ func (s *Server) handleTextDelete(writer *bufio.Writer, parts []string) {
 func (s *Server) handleTextIncrDecr(writer *bufio.Writer, parts []string, incr bool) {
 	if len(parts) < 3 {
 		writer.WriteString("CLIENT_ERROR bad command line format\r\n")
-		writer.Flush()
 		return
 	}
 	key := parts[1]
@@ -265,7 +248,6 @@ func (s *Server) handleTextIncrDecr(writer *bufio.Writer, parts []string, incr b
 	delta, err := strconv.ParseUint(valStr, 10, 64)
 	if err != nil {
 		writer.WriteString("CLIENT_ERROR invalid numeric delta argument\r\n")
-		writer.Flush()
 		return
 	}
 	noreply := len(parts) > 3 && parts[3] == "noreply"
@@ -281,25 +263,21 @@ func (s *Server) handleTextIncrDecr(writer *bufio.Writer, parts []string, incr b
 		if err == os.ErrNotExist {
 			if !noreply {
 				writer.WriteString("NOT_FOUND\r\n")
-				writer.Flush()
 			}
 			return
 		}
 		writer.WriteString("CLIENT_ERROR " + err.Error() + "\r\n")
-		writer.Flush()
 		return
 	}
 
 	if !noreply {
 		writer.WriteString(strconv.FormatUint(newVal, 10) + "\r\n")
-		writer.Flush()
 	}
 }
 
 func (s *Server) handleTextTouch(writer *bufio.Writer, parts []string) {
 	if len(parts) < 3 {
 		writer.WriteString("CLIENT_ERROR bad command line format\r\n")
-		writer.Flush()
 		return
 	}
 
@@ -324,14 +302,12 @@ func (s *Server) handleTextTouch(writer *bufio.Writer, parts []string) {
 			} else {
 				writer.WriteString("SERVER_ERROR " + err.Error() + "\r\n")
 			}
-			writer.Flush()
 		}
 		return
 	}
 
 	if !noreply {
 		writer.WriteString("TOUCHED\r\n")
-		writer.Flush()
 	}
 }
 
@@ -346,7 +322,6 @@ func (s *Server) handleTextFlushAll(writer *bufio.Writer, parts []string) {
 	s.cache.FlushAll()
 	if !noreply {
 		writer.WriteString("OK\r\n")
-		writer.Flush()
 	}
 }
 
@@ -360,5 +335,4 @@ func (s *Server) handleTextStats(writer *bufio.Writer) {
 		writer.WriteString(fmt.Sprintf("STAT %s %s\r\n", k, v))
 	}
 	writer.WriteString("END\r\n")
-	writer.Flush()
 }
