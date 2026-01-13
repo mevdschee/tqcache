@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
@@ -93,13 +92,13 @@ func main() {
 		}
 	}()
 
-	// Start pprof server
-	go func() {
-		log.Println("Starting pprof server on :6062")
-		if err := http.ListenAndServe("localhost:6062", nil); err != nil {
-			log.Println("Pprof failed:", err)
-		}
-	}()
+	// // Start pprof server
+	// go func() {
+	// 	log.Println("Starting pprof server on :6062")
+	// 	if err := http.ListenAndServe("localhost:6062", nil); err != nil {
+	// 		log.Println("Pprof failed:", err)
+	// 	}
+	// }()
 
 	// Set up signal handling
 	quit := make(chan os.Signal, 1)
