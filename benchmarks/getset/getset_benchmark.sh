@@ -302,8 +302,8 @@ print(f"Saved: ${PNG_FILE}")
 EOF
 }
 
-# Main loop: run benchmarks for shards 1, 2, 3, 4, 6, 8
-for SHARD_COUNT in 1 2 3 4 6 8; do
+# Main loop: run benchmarks for shards 4, 8, 12, 16, 24, 32
+for SHARD_COUNT in 4 8 12 16 24 32; do
     echo ""
     echo "###########################################################"
     echo "# BENCHMARKING WITH $SHARD_COUNT SHARD(S)"

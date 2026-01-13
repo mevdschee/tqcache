@@ -66,11 +66,14 @@ type Worker struct {
 	syncNotify   func() // Called when sync is needed
 }
 
-func NewWorker(storage *Storage, DefaultTTL time.Duration, maxDataSize int64) (*Worker, error) {
+func NewWorker(storage *Storage, DefaultTTL time.Duration, maxDataSize int64, channelCapacity int) (*Worker, error) {
+	if channelCapacity <= 0 {
+		channelCapacity = 1000 // Default
+	}
 	w := &Worker{
 		storage:      storage,
 		index:        NewIndex(),
-		reqChan:      make(chan *Request, 1000),
+		reqChan:      make(chan *Request, channelCapacity),
 		stopChan:     make(chan struct{}),
 		startTime:    time.Now(),
 		DefaultTTL:   DefaultTTL,

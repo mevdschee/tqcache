@@ -32,8 +32,15 @@ func NewSharded(cfg Config, shardCount int) (*ShardedCache, error) {
 		shardCount = DefaultShardCount
 	}
 
-	// Set GOMAXPROCS to match shard count for optimal parallelism
-	runtime.GOMAXPROCS(shardCount)
+	// Set GOMAXPROCS for optimal parallelism: max(min(cpucount,shards/4), 1)
+	gomaxprocs := runtime.NumCPU()
+	if gomaxprocs > shardCount/4 {
+		gomaxprocs = shardCount / 4
+	}
+	if gomaxprocs < 1 {
+		gomaxprocs = 1
+	}
+	runtime.GOMAXPROCS(gomaxprocs)
 
 	sc := &ShardedCache{
 		workers:   make([]*Worker, shardCount),
@@ -64,7 +71,7 @@ func NewSharded(cfg Config, shardCount int) (*ShardedCache, error) {
 		}
 
 		// Create worker with storage
-		worker, err := NewWorker(storage, cfg.DefaultTTL, cfg.MaxDataSize/int64(shardCount))
+		worker, err := NewWorker(storage, cfg.DefaultTTL, cfg.MaxDataSize/int64(shardCount), cfg.ChannelCapacity)
 		if err != nil {
 			storage.Close()
 			for j := 0; j < i; j++ {

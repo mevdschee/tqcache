@@ -17,13 +17,14 @@ type Config struct {
 		Listen string // Address to listen on (e.g., :11211 or localhost:11211)
 	}
 	Storage struct {
-		DataDir      string
-		Shards       string // e.g., "16"
-		DefaultTTL   string // e.g., "0s", "1h"
-		MaxTTL       string // e.g., "0s" (unlimited), "24h"
-		MaxDataSize  string // e.g., "64MB" - max live data before LRU eviction
-		SyncStrategy string // "none", "periodic"
-		SyncInterval string // e.g., "1s"
+		DataDir         string
+		Shards          string // e.g., "16"
+		DefaultTTL      string // e.g., "0s", "1h"
+		MaxTTL          string // e.g., "0s" (unlimited), "24h"
+		MaxDataSize     string // e.g., "64MB" - max live data before LRU eviction
+		SyncStrategy    string // "none", "periodic"
+		SyncInterval    string // e.g., "1s"
+		ChannelCapacity string // e.g., "100" or "1000"
 	}
 }
 
@@ -88,6 +89,8 @@ func parseINI(data string) (*Config, error) {
 				cfg.Storage.SyncStrategy = value
 			case "sync-interval":
 				cfg.Storage.SyncInterval = value
+			case "channel-capacity":
+				cfg.Storage.ChannelCapacity = value
 			}
 		}
 	}
@@ -146,6 +149,14 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 			return cfg, fmt.Errorf("invalid sync_interval: %w", err)
 		}
 		cfg.SyncInterval = dur
+	}
+
+	if c.Storage.ChannelCapacity != "" {
+		n, err := strconv.Atoi(c.Storage.ChannelCapacity)
+		if err != nil {
+			return cfg, fmt.Errorf("invalid channel-capacity: %w", err)
+		}
+		cfg.ChannelCapacity = n
 	}
 
 	return cfg, nil

@@ -76,7 +76,7 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 
 ### Benchmark Results
 
-![Performance Benchmark](benchmarks/getset/getset_benchmark.png)
+![Performance Benchmark](benchmarks/getset/getset_benchmark_16.png)
 
 ### Performance Highlights
 - **Write (SET)**: TQSession outperforms Redis (~104k RPS vs ~52k RPS) in writing persistence-backed data (Periodic Sync).
