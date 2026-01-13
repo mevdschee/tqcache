@@ -25,10 +25,10 @@ cleanup() {
     kill_port 6380
     kill_port 11222
 
-    rm -rf /tmp/tqsession-bench
+    rm -rf /tmp/tqcache-bench
     rm -rf /tmp/redis-bench
     rm -f max_rss.tmp cpu_start.tmp cpu_time.tmp results.tmp
-    rm -f tqsession-server benchmark-tool
+    rm -f tqcache-server benchmark-tool
     rm -f redis_bench.log
 }
 trap cleanup EXIT
@@ -44,8 +44,8 @@ if ! command -v redis-server &> /dev/null; then
 fi
 
 # Build
-echo "Building TQSession and Benchmark Tool..."
-go build -o tqsession-server ../../cmd/tqsession
+echo "Building TQCache and Benchmark Tool..."
+go build -o tqcache-server ../../cmd/tqcache
 go build -o benchmark-tool .
 
 # Benchmark Configuration
@@ -138,25 +138,25 @@ run_benchmark_set() {
     kill_port 6380
     kill_port 11222
 
-    # --- Start TQSession ---
-    echo "Starting TQSession (Sync Mode: $SYNC_MODE, Interval: $SYNC_INTERVAL, Shards: $SHARD_COUNT)..."
-    rm -rf /tmp/tqsession-bench
-    mkdir -p /tmp/tqsession-bench
+    # --- Start TQCache ---
+    echo "Starting TQCache (Sync Mode: $SYNC_MODE, Interval: $SYNC_INTERVAL, Shards: $SHARD_COUNT)..."
+    rm -rf /tmp/tqcache-bench
+    mkdir -p /tmp/tqcache-bench
     
     # Generate config file with current sync mode and shard count
-    cat > /tmp/tqsession-bench.conf << CONF
+    cat > /tmp/tqcache-bench.conf << CONF
 [server]
 listen = :11221
 
 [storage]
-data-dir = /tmp/tqsession-bench
+data-dir = /tmp/tqcache-bench
 shards = $SHARD_COUNT
 sync-mode = $SYNC_MODE
 sync-interval = $SYNC_INTERVAL
 max-data-size = 1GB
 CONF
     
-    ./tqsession-server -config /tmp/tqsession-bench.conf > /dev/null 2>&1 &
+    ./tqcache-server -config /tmp/tqcache-bench.conf > /dev/null 2>&1 &
     TQ_PID=$!
 
     # --- Start Redis ---
@@ -179,10 +179,10 @@ CONF
 
     # --- Run Benchmarks ---
 
-    # TQSession
-    echo "Benchmarking TQSession..."
+    # TQCache
+    echo "Benchmarking TQCache..."
     start_monitor $TQ_PID
-    ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQSession" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQ_COUNT -size $SIZE -keys $KEYS -csv > results.tmp
+    ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQCache" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQ_COUNT -size $SIZE -keys $KEYS -csv > results.tmp
     STATS=$(stop_monitor $TQ_PID)
     awk -v stats="$STATS" '{print $0 "," stats}' results.tmp >> $OUTPUT
 
@@ -295,7 +295,7 @@ for ax in (ax1, ax2, ax3, ax4):
     ylim = ax.get_ylim()
     ax.set_ylim(0, ylim[1] * 1.15)
 
-plt.suptitle('TQSession Performance Benchmark (Shards: ${SHARD_COUNT})', fontsize=16)
+plt.suptitle('TQCache Performance Benchmark (Shards: ${SHARD_COUNT})', fontsize=16)
 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
 plt.savefig('${PNG_FILE}', dpi=150, bbox_inches='tight')
 print(f"Saved: ${PNG_FILE}")

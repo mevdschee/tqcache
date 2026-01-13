@@ -69,7 +69,7 @@ func main() {
 		log.Fatal("ERROR: -dst-dir must be different from -src-dir")
 	}
 
-	log.Printf("TQSession Cleanup/Reshard Tool")
+	log.Printf("TQCache Cleanup/Reshard Tool")
 	log.Printf("Source directory: %s", *srcDir)
 	log.Printf("Destination directory: %s", *dstDir)
 

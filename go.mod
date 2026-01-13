@@ -1,4 +1,4 @@
-module github.com/mevdschee/tqsession
+module github.com/mevdschee/tqcache
 
 go 1.21
 

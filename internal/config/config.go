@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mevdschee/tqsession/pkg/tqsession"
+	"github.com/mevdschee/tqcache/pkg/tqcache"
 )
 
 // Config represents the application configuration.
-// It maps to the INI config file and converts to tqsession.Config.
+// It maps to the INI config file and converts to tqcache.Config.
 type Config struct {
 	Server struct {
 		Listen string // Address to listen on (e.g., :11211 or localhost:11211)
@@ -98,9 +98,9 @@ func parseINI(data string) (*Config, error) {
 	return cfg, nil
 }
 
-// ToTQSessionConfig converts the file-based configuration to the library's config struct.
-func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
-	cfg := tqsession.DefaultConfig()
+// ToTQCacheConfig converts the file-based configuration to the library's config struct.
+func (c *Config) ToTQCacheConfig() (tqcache.Config, error) {
+	cfg := tqcache.DefaultConfig()
 
 	if c.Storage.DataDir != "" {
 		cfg.DataDir = c.Storage.DataDir
@@ -133,11 +133,11 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 	if c.Storage.SyncStrategy != "" {
 		switch c.Storage.SyncStrategy {
 		case "always":
-			cfg.SyncStrategy = tqsession.SyncAlways
+			cfg.SyncStrategy = tqcache.SyncAlways
 		case "periodic":
-			cfg.SyncStrategy = tqsession.SyncPeriodic
+			cfg.SyncStrategy = tqcache.SyncPeriodic
 		case "none":
-			cfg.SyncStrategy = tqsession.SyncNone
+			cfg.SyncStrategy = tqcache.SyncNone
 		default:
 			return cfg, fmt.Errorf("invalid sync_strategy: %s (valid: none, periodic)", c.Storage.SyncStrategy)
 		}
@@ -165,11 +165,11 @@ func (c *Config) ToTQSessionConfig() (tqsession.Config, error) {
 // Shards returns the configured number of shards
 func (c *Config) Shards() int {
 	if c.Storage.Shards == "" {
-		return tqsession.DefaultShardCount
+		return tqcache.DefaultShardCount
 	}
 	n, err := strconv.Atoi(c.Storage.Shards)
 	if err != nil || n <= 0 {
-		return tqsession.DefaultShardCount
+		return tqcache.DefaultShardCount
 	}
 	return n
 }

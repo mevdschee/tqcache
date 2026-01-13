@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mevdschee/tqsession/pkg/tqsession"
+	"github.com/mevdschee/tqcache/pkg/tqcache"
 )
 
 const (
@@ -183,7 +183,7 @@ func (s *Server) handleBinaryStorage(writer *bufio.Writer, req binaryHeader, ext
 	}
 
 	if err != nil {
-		if err == tqsession.ErrValueTooLarge {
+		if err == tqcache.ErrValueTooLarge {
 			s.sendBinaryResponse(writer, req, resValueTooLarge, nil, nil, nil, 0)
 			return
 		}
@@ -310,7 +310,7 @@ func (s *Server) handleBinaryAppendPrepend(writer *bufio.Writer, req binaryHeade
 	}
 
 	if err != nil {
-		if err == tqsession.ErrValueTooLarge {
+		if err == tqcache.ErrValueTooLarge {
 			s.sendBinaryResponse(writer, req, resValueTooLarge, nil, nil, nil, 0)
 			return
 		}

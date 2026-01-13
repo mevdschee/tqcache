@@ -1,9 +1,9 @@
-# Project Brief: TQSession
+# Project Brief: TQCache
 
-TQSession is a high-performance, persistent caching system implemented in Go. It allows
+TQCache is a high-performance, persistent caching system implemented in Go. It allows
 usage both as an **embeddable Go library** and as a **standalone server application** 
 (CLI). The server application behaves like Memcached, accepting a configuration file
-(defaulting to `tqsession.conf`) for easy deployment. It allows 
+(defaulting to `tqcache.conf`) for easy deployment. It allows 
 **configurable persistence guarantees** (e.g., FSYNC on every write, periodic sync, 
 or OS-buffered) to balance durability vs. performance. It implements 
 **both the Memcached text protocol and the Binary Protocol**, ensuring compatibility

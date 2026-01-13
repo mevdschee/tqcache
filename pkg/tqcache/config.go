@@ -1,4 +1,4 @@
-package tqsession
+package tqcache
 
 import "time"
 
@@ -21,7 +21,7 @@ const (
 	DefaultSyncInterval    = 1 * time.Second
 )
 
-// Config holds the configuration for TQSession
+// Config holds the configuration for TQCache
 type Config struct {
 	DataDir         string
 	DefaultTTL      time.Duration

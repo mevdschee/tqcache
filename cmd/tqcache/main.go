@@ -10,18 +10,18 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/mevdschee/tqsession/internal/config"
-	"github.com/mevdschee/tqsession/pkg/server"
-	"github.com/mevdschee/tqsession/pkg/tqsession"
+	"github.com/mevdschee/tqcache/internal/config"
+	"github.com/mevdschee/tqcache/pkg/server"
+	"github.com/mevdschee/tqcache/pkg/tqcache"
 )
 
 func main() {
-	defaults := tqsession.DefaultConfig()
+	defaults := tqcache.DefaultConfig()
 
 	configFile := flag.String("config", "", "Path to config file (INI format)")
 	listen := flag.String("listen", ":11211", "Address to listen on ([host]:port)")
 	dataDir := flag.String("data-dir", defaults.DataDir, "Directory for data files")
-	shards := flag.Int("shards", tqsession.DefaultShardCount, "Number of shards for parallel access")
+	shards := flag.Int("shards", tqcache.DefaultShardCount, "Number of shards for parallel access")
 	defaultTTL := flag.Duration("default-ttl", defaults.DefaultTTL, "Default TTL for keys without explicit expiry (0 = no expiry)")
 	maxTTL := flag.Duration("max-ttl", defaults.MaxTTL, "Maximum TTL cap for any key (0 = unlimited)")
 	maxDataSize := flag.Int64("max-data-size", defaults.MaxDataSize, "Maximum live data size in bytes for LRU eviction (0 = unlimited)")
@@ -33,7 +33,7 @@ func main() {
 	}
 	flag.Parse()
 
-	var cfg tqsession.Config
+	var cfg tqcache.Config
 	var serverPort string
 	var shardCount int
 
@@ -43,7 +43,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to load config file: %v", err)
 		}
-		cfg, err = fileCfg.ToTQSessionConfig()
+		cfg, err = fileCfg.ToTQCacheConfig()
 		if err != nil {
 			log.Fatalf("Invalid config: %v", err)
 		}
@@ -64,11 +64,11 @@ func main() {
 
 		switch *syncMode {
 		case "none":
-			cfg.SyncStrategy = tqsession.SyncNone
+			cfg.SyncStrategy = tqcache.SyncNone
 		case "periodic":
-			cfg.SyncStrategy = tqsession.SyncPeriodic
+			cfg.SyncStrategy = tqcache.SyncPeriodic
 		case "always":
-			cfg.SyncStrategy = tqsession.SyncAlways
+			cfg.SyncStrategy = tqcache.SyncAlways
 		default:
 			log.Fatalf("Invalid sync-mode: %s (valid: none, periodic, always)", *syncMode)
 		}
@@ -77,9 +77,9 @@ func main() {
 		shardCount = *shards
 	}
 
-	cache, err := tqsession.NewSharded(cfg, shardCount)
+	cache, err := tqcache.NewSharded(cfg, shardCount)
 	if err != nil {
-		log.Fatalf("Failed to initialize TQSession: %v", err)
+		log.Fatalf("Failed to initialize TQCache: %v", err)
 	}
 	defer cache.Close()
 
@@ -102,7 +102,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
-	log.Printf("TQSession started on %s", serverPort)
+	log.Printf("TQCache started on %s", serverPort)
 	<-quit
-	log.Println("Shutting down TQSession...")
+	log.Println("Shutting down TQCache...")
 }

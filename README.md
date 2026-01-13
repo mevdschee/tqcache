@@ -1,6 +1,6 @@
-# TQSession
+# TQCache
 
-TQSession is a high-performance, persistent session storage server. It provides a Memcached-compatible interface
+TQCache is a high-performance, persistent session storage server. It provides a Memcached-compatible interface
 with disk-based persistence, making it ideal for session storage that survives restarts.
 
 ## Features
@@ -21,21 +21,21 @@ with disk-based persistence, making it ideal for session storage that survives r
 ## Installation
 
 ```bash
-go install github.com/mevdschee/tqsession/cmd/tqsession@latest
+go install github.com/mevdschee/tqcache/cmd/tqcache@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/mevdschee/tqsession.git
-cd tqsession
-go build -o tqsession ./cmd/tqsession
+git clone https://github.com/mevdschee/tqcache.git
+cd tqcache
+go build -o tqcache ./cmd/tqcache
 ```
 
 ## Usage
 
 ```bash
-tqsession [options]
+tqcache [options]
 ```
 
 ### Command-Line Flags
@@ -54,11 +54,11 @@ tqsession [options]
 
 **Fixed limits:** Max key size is 1KB, max value size is 64MB.
 
-NB: You may also use a config file instead of CLI flags (see [cmd/tqsession/tqsession.conf](cmd/tqsession/tqsession.conf)).
+NB: You may also use a config file instead of CLI flags (see [cmd/tqcache/tqcache.conf](cmd/tqcache/tqcache.conf)).
 
 ## PHP Configuration
 
-Configure PHP to use TQSession as the session handler:
+Configure PHP to use TQCache as the session handler:
 
 ```ini
 session.save_handler = memcached
@@ -69,7 +69,7 @@ NB: Set "max-data-size = 0" and "max-ttl = 24h" to prevent data loss and prevent
 
 ## Performance
 
-**TQSession vs Redis vs Memcached**
+**TQCache vs Redis vs Memcached**
 
 Benchmarks were run on a local development environment (Linux, Loopback).
 100,000 keys were used for the benchmark, each with a size of 10KB.
@@ -90,19 +90,19 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 | :--- | :--- | :--- | :--- | :--- |
 | **Memcached** (Memory) | ~139k | ~296k | ~680MB | ~3 core |
 | **Redis** (Periodic) | ~61k | ~121k | ~769MB | ~1 core |
-| **TQSession** (Periodic) | ~84k | ~144k | ~92MB | ~4 core |
+| **TQCache** (Periodic) | ~84k | ~144k | ~92MB | ~4 core |
 
 NB: the amount of cores used can be calculated as: shards / 4
 
 ## Testing
 
 ```bash
-go test ./pkg/tqsession/...
+go test ./pkg/tqcache/...
 ```
 
 ## Architecture
 
-TQSession stores session data on disk in a fixed-size record formats and
+TQCache stores session data on disk in a fixed-size record formats and
 holds several memory data structures to speed up access. It assumes SSD
 performance with good random I/O and enough free memory to let the OS keep
 the disk blocks in the cache. It does not perform any disk I/O optimization

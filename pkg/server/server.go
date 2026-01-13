@@ -7,17 +7,17 @@ import (
 	"net"
 	"time"
 
-	"github.com/mevdschee/tqsession/pkg/tqsession"
+	"github.com/mevdschee/tqcache/pkg/tqcache"
 )
 
-// Server represents the TQSession network server.
+// Server represents the TQCache network server.
 type Server struct {
-	cache tqsession.CacheInterface
+	cache tqcache.CacheInterface
 	addr  string
 }
 
 // New creates a new Server instance.
-func New(cache tqsession.CacheInterface, addr string) *Server {
+func New(cache tqcache.CacheInterface, addr string) *Server {
 	return &Server{
 		cache: cache,
 		addr:  addr,

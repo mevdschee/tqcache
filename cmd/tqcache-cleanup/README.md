@@ -1,19 +1,19 @@
 ### Cleanup / Reshard Tool
 
-The `tqsession-cleanup` tool repairs corrupted data files and can reshard data to a different number of shards:
+The `tqcache-cleanup` tool repairs corrupted data files and can reshard data to a different number of shards:
 
 ```bash
 # Build the cleanup tool
-go build -o tqsession-cleanup ./cmd/tqsession-cleanup
+go build -o tqcache-cleanup ./cmd/tqcache-cleanup
 
 # Dry run to see what would be cleaned (stop the server first!)
-./tqsession-cleanup -src-dir /path/to/data -dst-dir /path/to/data_clean -dry-run -verbose
+./tqcache-cleanup -src-dir /path/to/data -dst-dir /path/to/data_clean -dry-run -verbose
 
 # Clean and keep the same shard count (auto-detected)
-./tqsession-cleanup -src-dir /path/to/data -dst-dir /path/to/data_clean
+./tqcache-cleanup -src-dir /path/to/data -dst-dir /path/to/data_clean
 
 # Reshard from any number of shards to 32 shards
-./tqsession-cleanup -src-dir /path/to/data -dst-dir /path/to/data_resharded -target-shards 32
+./tqcache-cleanup -src-dir /path/to/data -dst-dir /path/to/data_resharded -target-shards 32
 ```
 
 | Flag             | Default | Description                                          |
@@ -29,4 +29,4 @@ go build -o tqsession-cleanup ./cmd/tqsession-cleanup
 - Validates and skips corrupted/invalid entries
 - Redistributes keys using consistent FNV hash when resharding
 
-**Important:** Stop TQSession before running the cleanup tool.
+**Important:** Stop TQCache before running the cleanup tool.
