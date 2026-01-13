@@ -15,7 +15,7 @@ import (
 
 // Constants from storage.go
 const (
-	KeyRecordSize  = 1059 // 2 + 1024 + 8 + 8 + 8 + 1 + 8
+	KeyRecordSize  = 1043 // 2 + 1024 + 8 + 8 + 1 + 8 (removed LastAccessed)
 	MaxKeySize     = 1024
 	DataHeaderSize = 1 + 4 // free + length
 	NumBuckets     = 16
@@ -26,13 +26,12 @@ const (
 
 // KeyRecord represents a fixed-size record in the keys file
 type KeyRecord struct {
-	KeyLen       uint16
-	Key          [MaxKeySize]byte
-	LastAccessed int64
-	Cas          uint64
-	Expiry       int64
-	Bucket       byte
-	SlotIdx      int64
+	KeyLen  uint16
+	Key     [MaxKeySize]byte
+	Cas     uint64
+	Expiry  int64
+	Bucket  byte
+	SlotIdx int64
 }
 
 // ValidEntry holds a validated key record and its data
@@ -386,12 +385,11 @@ func readKeyRecord(f *os.File, keyId int64) (*KeyRecord, error) {
 	}
 
 	rec := &KeyRecord{
-		KeyLen:       binary.LittleEndian.Uint16(buf[0:2]),
-		LastAccessed: int64(binary.LittleEndian.Uint64(buf[1026:1034])),
-		Cas:          binary.LittleEndian.Uint64(buf[1034:1042]),
-		Expiry:       int64(binary.LittleEndian.Uint64(buf[1042:1050])),
-		Bucket:       buf[1050],
-		SlotIdx:      int64(binary.LittleEndian.Uint64(buf[1051:1059])),
+		KeyLen:  binary.LittleEndian.Uint16(buf[0:2]),
+		Cas:     binary.LittleEndian.Uint64(buf[1026:1034]),
+		Expiry:  int64(binary.LittleEndian.Uint64(buf[1034:1042])),
+		Bucket:  buf[1042],
+		SlotIdx: int64(binary.LittleEndian.Uint64(buf[1043:1051])),
 	}
 	copy(rec.Key[:], buf[2:1026])
 
@@ -404,11 +402,10 @@ func writeKeyRecord(f *os.File, keyId int64, rec *KeyRecord) error {
 
 	binary.LittleEndian.PutUint16(buf[0:2], rec.KeyLen)
 	copy(buf[2:1026], rec.Key[:])
-	binary.LittleEndian.PutUint64(buf[1026:1034], uint64(rec.LastAccessed))
-	binary.LittleEndian.PutUint64(buf[1034:1042], rec.Cas)
-	binary.LittleEndian.PutUint64(buf[1042:1050], uint64(rec.Expiry))
-	buf[1050] = rec.Bucket
-	binary.LittleEndian.PutUint64(buf[1051:1059], uint64(rec.SlotIdx))
+	binary.LittleEndian.PutUint64(buf[1026:1034], rec.Cas)
+	binary.LittleEndian.PutUint64(buf[1034:1042], uint64(rec.Expiry))
+	buf[1042] = rec.Bucket
+	binary.LittleEndian.PutUint64(buf[1043:1051], uint64(rec.SlotIdx))
 
 	_, err := f.WriteAt(buf, offset)
 	return err

@@ -10,7 +10,6 @@ with disk-based persistence, making it ideal for session storage that survives r
 - **Efficient Storage**: About 25-33% waste space on disk on average
 - **Faster than Redis**: About 2x faster than Redis in typical cases
 - **Memcached Compatible**: Supports all Memcached commands, including binary protocol
-- **Eviction Optional**: Set `max-data-size = 0` to disable eviction (default)
 - **TTL Enforcement**: Maximum TTL defaults to 24 hours (set to 0 to disable)
 
 ## Requirements
@@ -47,7 +46,6 @@ tqcache [options]
 | `-shards`        | `16`        | Number of shards for parallel processing                          |
 | `-default-ttl`   | `0`         | Default TTL for keys (`0` = no expiry)                            |
 | `-max-ttl`       | `24h`       | Maximum TTL cap for any key (`0` = unlimited)                     |
-| `-max-data-size` | `64MB`      | Max live data size in bytes for LRU eviction (`0` = unlimited)    |
 | `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                           |
 | `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                      |
 
@@ -62,7 +60,7 @@ session.save_handler = memcached
 session.save_path = "localhost:11211"
 ```
 
-NB: Set "max-data-size = 0" and "max-ttl = 24h" to prevent data loss and prevent disk space exhaustion.
+NB: Set "max-ttl = 24h" to prevent disk space exhaustion.
 
 ## Performance
 

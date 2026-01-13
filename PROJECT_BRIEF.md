@@ -48,27 +48,26 @@ Uses **fixed-size records** with `fseek` for random access (not append-only).
 
 #### Keys File Format (`keys`)
 
-Each record is exactly **1059 bytes** at offset `keyId * 1059`:
+Each record is exactly **1051 bytes** at offset `keyId * 1051`:
 
 ```
-┌──────────┬──────────────┬──────────────┬─────────┬──────────┬────────┬─────────┐
-│  keyLen  │     key      │ lastAccessed │   cas   │  expiry  │ bucket │ slotIdx │
-│ 2 bytes  │  1024 bytes  │   8 bytes    │ 8 bytes │ 8 bytes  │ 1 byte │ 8 bytes │
-└──────────┴──────────────┴──────────────┴─────────┴──────────┴────────┴─────────┘
-         Total: 1059 bytes per record
+┌──────────┬──────────────┬─────────┬──────────┬────────┬─────────┐
+│  keyLen  │     key      │   cas   │  expiry  │ bucket │ slotIdx │
+│ 2 bytes  │  1024 bytes  │ 8 bytes │ 8 bytes  │ 1 byte │ 8 bytes │
+└──────────┴──────────────┴─────────┴──────────┴────────┴─────────┘
+         Total: 1051 bytes per record
 ```
 
 | Field          | Size    | Description                                               |
 |----------------|---------|-----------------------------------------------------------|
 | `keyLen`       | 2 bytes | Actual key length (uint16, 0-1024)                        |
 | `key`          | 1024 bytes | Key string, null-padded                                |
-| `lastAccessed` | 8 bytes | Unix timestamp (int64), for LRU                           |
 | `cas`          | 8 bytes | CAS token (uint64)                                        |
 | `expiry`       | 8 bytes | Unix timestamp in **milliseconds** (int64), 0 = no expiry |
 | `bucket`       | 1 byte  | Data bucket index (0-15)                                  |
 | `slotIdx`      | 8 bytes | Slot index within the bucket (int64)                      |
 
-**keyId** = record index = file offset / 1059
+**keyId** = record index = file offset / 1051
 
 ---
 
@@ -118,12 +117,7 @@ Start at 1024 bytes and double the size for each file.
 2. If `root.expiry <= now`: pop, compact file slots via continuous defrag
 3. Repeat until root is not expired or heap is empty
 
-#### 3. LRU List (Access-Order Eviction)
-- **In-memory**: Doubly-linked list ordered by `lastAccessed`
-- **On update**: Move node to head, update `lastAccessed` in keys file via fseek
-- **On eviction**: Remove from tail, compact file slots via continuous defrag
-
-#### 4. Continuous Defragmentation (Always Compact Files)
+#### 3. Continuous Defragmentation (Always Compact Files)
 
 Instead of free lists, uses **continuous defragmentation**:
 

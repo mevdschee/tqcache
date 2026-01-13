@@ -21,7 +21,6 @@ type Config struct {
 		Shards          string // e.g., "16"
 		DefaultTTL      string // e.g., "0s", "1h"
 		MaxTTL          string // e.g., "0s" (unlimited), "24h"
-		MaxDataSize     string // e.g., "64MB" - max live data before LRU eviction
 		SyncStrategy    string // "none", "periodic"
 		SyncInterval    string // e.g., "1s"
 		ChannelCapacity string // e.g., "100" or "1000"
@@ -83,8 +82,6 @@ func parseINI(data string) (*Config, error) {
 				cfg.Storage.DefaultTTL = value
 			case "max-ttl":
 				cfg.Storage.MaxTTL = value
-			case "max-data-size":
-				cfg.Storage.MaxDataSize = value
 			case "sync-mode":
 				cfg.Storage.SyncStrategy = value
 			case "sync-interval":
@@ -120,14 +117,6 @@ func (c *Config) ToTQCacheConfig() (tqcache.Config, error) {
 			return cfg, fmt.Errorf("invalid max-ttl: %w", err)
 		}
 		cfg.MaxTTL = dur
-	}
-
-	if c.Storage.MaxDataSize != "" {
-		size, err := parseBytes64(c.Storage.MaxDataSize)
-		if err != nil {
-			return cfg, fmt.Errorf("invalid max_data_size: %w", err)
-		}
-		cfg.MaxDataSize = size
 	}
 
 	if c.Storage.SyncStrategy != "" {
@@ -172,41 +161,4 @@ func (c *Config) Shards() int {
 		return tqcache.DefaultShardCount
 	}
 	return n
-}
-
-func parseBytes64(s string) (int64, error) {
-	s = strings.TrimSpace(strings.ToUpper(s))
-	if s == "" {
-		return 0, nil
-	}
-
-	var multiplier int64 = 1
-	if strings.HasSuffix(s, "GB") {
-		multiplier = 1024 * 1024 * 1024
-		s = strings.TrimSuffix(s, "GB")
-	} else if strings.HasSuffix(s, "G") {
-		multiplier = 1024 * 1024 * 1024
-		s = strings.TrimSuffix(s, "G")
-	} else if strings.HasSuffix(s, "MB") {
-		multiplier = 1024 * 1024
-		s = strings.TrimSuffix(s, "MB")
-	} else if strings.HasSuffix(s, "M") {
-		multiplier = 1024 * 1024
-		s = strings.TrimSuffix(s, "M")
-	} else if strings.HasSuffix(s, "KB") {
-		multiplier = 1024
-		s = strings.TrimSuffix(s, "KB")
-	} else if strings.HasSuffix(s, "K") {
-		multiplier = 1024
-		s = strings.TrimSuffix(s, "K")
-	} else if strings.HasSuffix(s, "B") {
-		s = strings.TrimSuffix(s, "B")
-	}
-
-	val, err := strconv.ParseInt(strings.TrimSpace(s), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return val * multiplier, nil
 }

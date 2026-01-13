@@ -6,12 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // Record sizes
 const (
-	KeyRecordSize  = 1059 // 2 + 1024 + 8 + 8 + 8 + 1 + 8 (keyLen, key, lastAccessed, cas, expiry, bucket, slotIdx)
+	KeyRecordSize  = 1051 // 2 + 1024 + 8 + 8 + 1 + 8 (keyLen, key, cas, expiry, bucket, slotIdx)
 	MaxKeySize     = 1024
 	DataHeaderSize = 1 + 4 // free + length (data files still have free flag)
 )
@@ -39,13 +38,12 @@ var (
 
 // KeyRecord represents a fixed-size record in the keys file
 type KeyRecord struct {
-	KeyLen       uint16 // Actual key length (0-1024)
-	Key          [MaxKeySize]byte
-	LastAccessed int64
-	Cas          uint64
-	Expiry       int64
-	Bucket       byte
-	SlotIdx      int64
+	KeyLen  uint16 // Actual key length (0-1024)
+	Key     [MaxKeySize]byte
+	Cas     uint64
+	Expiry  int64
+	Bucket  byte
+	SlotIdx int64
 }
 
 // Storage handles all file I/O for the cache
@@ -164,12 +162,11 @@ func (s *Storage) ReadKeyRecord(keyId int64) (*KeyRecord, error) {
 	}
 
 	rec := &KeyRecord{
-		KeyLen:       binary.LittleEndian.Uint16(buf[0:2]),
-		LastAccessed: int64(binary.LittleEndian.Uint64(buf[1026:1034])),
-		Cas:          binary.LittleEndian.Uint64(buf[1034:1042]),
-		Expiry:       int64(binary.LittleEndian.Uint64(buf[1042:1050])),
-		Bucket:       buf[1050],
-		SlotIdx:      int64(binary.LittleEndian.Uint64(buf[1051:1059])),
+		KeyLen:  binary.LittleEndian.Uint16(buf[0:2]),
+		Cas:     binary.LittleEndian.Uint64(buf[1026:1034]),
+		Expiry:  int64(binary.LittleEndian.Uint64(buf[1034:1042])),
+		Bucket:  buf[1042],
+		SlotIdx: int64(binary.LittleEndian.Uint64(buf[1043:1051])),
 	}
 	copy(rec.Key[:], buf[2:1026])
 
@@ -183,11 +180,10 @@ func (s *Storage) WriteKeyRecord(keyId int64, rec *KeyRecord) error {
 
 	binary.LittleEndian.PutUint16(buf[0:2], rec.KeyLen)
 	copy(buf[2:1026], rec.Key[:])
-	binary.LittleEndian.PutUint64(buf[1026:1034], uint64(rec.LastAccessed))
-	binary.LittleEndian.PutUint64(buf[1034:1042], rec.Cas)
-	binary.LittleEndian.PutUint64(buf[1042:1050], uint64(rec.Expiry))
-	buf[1050] = rec.Bucket
-	binary.LittleEndian.PutUint64(buf[1051:1059], uint64(rec.SlotIdx))
+	binary.LittleEndian.PutUint64(buf[1026:1034], rec.Cas)
+	binary.LittleEndian.PutUint64(buf[1034:1042], uint64(rec.Expiry))
+	buf[1042] = rec.Bucket
+	binary.LittleEndian.PutUint64(buf[1043:1051], uint64(rec.SlotIdx))
 
 	_, err := s.keysFile.WriteAt(buf, offset)
 	if err == nil && s.syncAlways {
@@ -284,18 +280,9 @@ func (s *Storage) SlotCount(bucket int) (int64, error) {
 	return size / int64(s.SlotSize(bucket)), nil
 }
 
-// UpdateLastAccessed updates only the lastAccessed field
-func (s *Storage) UpdateLastAccessed(keyId int64, lastAccessed time.Time) error {
-	offset := keyId*KeyRecordSize + 1 + 2 + MaxKeySize // Skip free + keyLen + key
-	buf := make([]byte, 8)
-	binary.LittleEndian.PutUint64(buf, uint64(lastAccessed.Unix()))
-	_, err := s.keysFile.WriteAt(buf, offset)
-	return err
-}
-
 // UpdateSlotIdx updates only the slotIdx field in a key record
 func (s *Storage) UpdateSlotIdx(keyId int64, slotIdx int64) error {
-	offset := keyId*KeyRecordSize + 1 + 2 + MaxKeySize + 8 + 8 + 8 + 1 // Skip to slotIdx
+	offset := keyId*KeyRecordSize + 2 + MaxKeySize + 8 + 8 + 1 // Skip keyLen + key + cas + expiry + bucket
 	buf := make([]byte, 8)
 	binary.LittleEndian.PutUint64(buf, uint64(slotIdx))
 	_, err := s.keysFile.WriteAt(buf, offset)

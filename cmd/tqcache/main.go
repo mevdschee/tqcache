@@ -24,7 +24,6 @@ func main() {
 	shards := flag.Int("shards", tqcache.DefaultShardCount, "Number of shards for parallel access")
 	defaultTTL := flag.Duration("default-ttl", defaults.DefaultTTL, "Default TTL for keys without explicit expiry (0 = no expiry)")
 	maxTTL := flag.Duration("max-ttl", defaults.MaxTTL, "Maximum TTL cap for any key (0 = unlimited)")
-	maxDataSize := flag.Int64("max-data-size", defaults.MaxDataSize, "Maximum live data size in bytes for LRU eviction (0 = unlimited)")
 	syncMode := flag.String("sync-mode", "periodic", "Sync mode: none, periodic, always")
 	syncInterval := flag.Duration("sync-interval", defaults.SyncInterval, "Sync interval for periodic fsync")
 	flag.Usage = func() {
@@ -59,7 +58,6 @@ func main() {
 		cfg.DataDir = *dataDir
 		cfg.DefaultTTL = *defaultTTL
 		cfg.MaxTTL = *maxTTL
-		cfg.MaxDataSize = *maxDataSize
 		cfg.SyncInterval = *syncInterval
 
 		switch *syncMode {

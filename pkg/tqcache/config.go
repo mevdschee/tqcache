@@ -28,7 +28,6 @@ type Config struct {
 	MaxTTL          time.Duration
 	MaxKeySize      int
 	MaxValueSize    int
-	MaxDataSize     int64
 	SyncStrategy    SyncStrategy
 	SyncInterval    time.Duration
 	ChannelCapacity int // Request channel capacity per worker (default 1000)
@@ -42,7 +41,6 @@ func DefaultConfig() Config {
 		MaxTTL:          7 * 24 * time.Hour,
 		MaxKeySize:      1 << 10, // 1KB
 		MaxValueSize:    1 << 20, // 1MB
-		MaxDataSize:     0,       // Unlimited
 		SyncStrategy:    SyncPeriodic,
 		SyncInterval:    DefaultSyncInterval,
 		ChannelCapacity: DefaultChannelCapacity,

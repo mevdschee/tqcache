@@ -2,21 +2,19 @@ package tqcache
 
 import (
 	"container/heap"
-	"time"
 
 	"github.com/google/btree"
 )
 
 // IndexEntry represents an entry in the B-tree index
 type IndexEntry struct {
-	Key          string
-	KeyId        int64
-	Bucket       int
-	SlotIdx      int64
-	Length       int
-	Expiry       int64 // Unix timestamp, 0 = no expiry
-	Cas          uint64
-	LastAccessed int64
+	Key     string
+	KeyId   int64
+	Bucket  int
+	SlotIdx int64
+	Length  int
+	Expiry  int64 // Unix timestamp, 0 = no expiry
+	Cas     uint64
 }
 
 // Less implements btree.Item
@@ -110,123 +108,10 @@ func (h *ExpiryHeap) PopExpired(now int64) []*ExpiryEntry {
 	return expired
 }
 
-// LRUNode represents a node in the LRU list
-type LRUNode struct {
-	KeyId        int64
-	LastAccessed int64
-	prev         *LRUNode
-	next         *LRUNode
-}
-
-// LRUList is a doubly-linked list for LRU eviction
-type LRUList struct {
-	head    *LRUNode
-	tail    *LRUNode
-	nodeMap map[int64]*LRUNode // keyId → node
-	count   int
-}
-
-func NewLRUList() *LRUList {
-	return &LRUList{
-		nodeMap: make(map[int64]*LRUNode),
-	}
-}
-
-// Len returns the number of items in the list
-func (l *LRUList) Len() int {
-	return l.count
-}
-
-// Add adds a new item to the front (most recently used)
-func (l *LRUList) Add(keyId int64, lastAccessed int64) {
-	node := &LRUNode{
-		KeyId:        keyId,
-		LastAccessed: lastAccessed,
-	}
-	l.nodeMap[keyId] = node
-	l.count++
-
-	if l.head == nil {
-		l.head = node
-		l.tail = node
-		return
-	}
-
-	node.next = l.head
-	l.head.prev = node
-	l.head = node
-}
-
-// Touch moves an item to the front and updates its timestamp
-func (l *LRUList) Touch(keyId int64, lastAccessed int64) {
-	node, ok := l.nodeMap[keyId]
-	if !ok {
-		return
-	}
-
-	node.LastAccessed = lastAccessed
-
-	// Already at front
-	if node == l.head {
-		return
-	}
-
-	// Remove from current position
-	if node.prev != nil {
-		node.prev.next = node.next
-	}
-	if node.next != nil {
-		node.next.prev = node.prev
-	}
-	if node == l.tail {
-		l.tail = node.prev
-	}
-
-	// Move to front
-	node.prev = nil
-	node.next = l.head
-	l.head.prev = node
-	l.head = node
-}
-
-// Remove removes an item from the list
-func (l *LRUList) Remove(keyId int64) {
-	node, ok := l.nodeMap[keyId]
-	if !ok {
-		return
-	}
-
-	delete(l.nodeMap, keyId)
-	l.count--
-
-	if node.prev != nil {
-		node.prev.next = node.next
-	} else {
-		l.head = node.next
-	}
-	if node.next != nil {
-		node.next.prev = node.prev
-	} else {
-		l.tail = node.prev
-	}
-}
-
-// PopTail removes and returns the least recently used item
-func (l *LRUList) PopTail() *LRUNode {
-	if l.tail == nil {
-		return nil
-	}
-
-	node := l.tail
-	l.Remove(node.KeyId)
-	return node
-}
-
 // Index holds all in-memory data structures
 type Index struct {
 	btree      *btree.BTree
 	expiryHeap *ExpiryHeap
-	lruList    *LRUList
 	keyIdMap   map[int64]string         // keyId → key for reverse lookup
 	slotIndex  map[int]map[int64]string // bucket → slotIdx → key for defrag
 }
@@ -235,7 +120,6 @@ func NewIndex() *Index {
 	idx := &Index{
 		btree:      btree.New(32), // degree 32 for good performance
 		expiryHeap: NewExpiryHeap(),
-		lruList:    NewLRUList(),
 		keyIdMap:   make(map[int64]string),
 		slotIndex:  make(map[int]map[int64]string),
 	}
@@ -274,13 +158,6 @@ func (idx *Index) Set(entry *IndexEntry) {
 	} else {
 		idx.expiryHeap.Remove(entry.KeyId)
 	}
-
-	// Update LRU list
-	if _, exists := idx.lruList.nodeMap[entry.KeyId]; exists {
-		idx.lruList.Touch(entry.KeyId, entry.LastAccessed)
-	} else {
-		idx.lruList.Add(entry.KeyId, entry.LastAccessed)
-	}
 }
 
 // Delete removes an entry by key
@@ -293,7 +170,6 @@ func (idx *Index) Delete(key string) *IndexEntry {
 	delete(idx.keyIdMap, entry.KeyId)
 	delete(idx.slotIndex[entry.Bucket], entry.SlotIdx)
 	idx.expiryHeap.Remove(entry.KeyId)
-	idx.lruList.Remove(entry.KeyId)
 	return &entry
 }
 
@@ -307,18 +183,6 @@ func (idx *Index) GetByKeyId(keyId int64) *IndexEntry {
 	return entry
 }
 
-// Touch updates the last accessed time for an entry
-func (idx *Index) Touch(key string, lastAccessed time.Time) *IndexEntry {
-	entry, ok := idx.Get(key)
-	if !ok {
-		return nil
-	}
-	entry.LastAccessed = lastAccessed.Unix()
-	idx.btree.ReplaceOrInsert(*entry)
-	idx.lruList.Touch(entry.KeyId, entry.LastAccessed)
-	return entry
-}
-
 // Count returns the number of entries
 func (idx *Index) Count() int {
 	return idx.btree.Len()
@@ -327,11 +191,6 @@ func (idx *Index) Count() int {
 // GetExpired returns entries that have expired
 func (idx *Index) GetExpired(now int64) []*ExpiryEntry {
 	return idx.expiryHeap.PopExpired(now)
-}
-
-// PopLRU removes and returns the least recently used entry's keyId
-func (idx *Index) PopLRU() *LRUNode {
-	return idx.lruList.PopTail()
 }
 
 // GetByBucketSlot retrieves an entry by bucket and slot index
@@ -360,11 +219,11 @@ func (idx *Index) UpdateSlotIdx(entry *IndexEntry, newSlotIdx int64) {
 func (idx *Index) UpdateKeyId(entry *IndexEntry, newKeyId int64) {
 	// Remove old keyId mapping
 	delete(idx.keyIdMap, entry.KeyId)
-	// Update LRU list node
-	if node, ok := idx.lruList.nodeMap[entry.KeyId]; ok {
-		delete(idx.lruList.nodeMap, entry.KeyId)
-		node.KeyId = newKeyId
-		idx.lruList.nodeMap[newKeyId] = node
+	// Update expiry heap
+	if heapIdx, ok := idx.expiryHeap.keyIndex[entry.KeyId]; ok {
+		delete(idx.expiryHeap.keyIndex, entry.KeyId)
+		idx.expiryHeap.entries[heapIdx].KeyId = newKeyId
+		idx.expiryHeap.keyIndex[newKeyId] = heapIdx
 	}
 	// Update expiry heap
 	if heapIdx, ok := idx.expiryHeap.keyIndex[entry.KeyId]; ok {

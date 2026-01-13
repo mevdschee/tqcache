@@ -65,8 +65,7 @@ func NewSharded(cfg Config, shardCount int) (*ShardedCache, error) {
 			return nil, fmt.Errorf("failed to create storage for shard %d: %w", i, err)
 		}
 
-		// Create worker with storage
-		worker, err := NewWorker(storage, cfg.DefaultTTL, cfg.MaxDataSize/int64(shardCount), cfg.ChannelCapacity)
+		worker, err := NewWorker(storage, cfg.DefaultTTL, cfg.MaxTTL, cfg.ChannelCapacity)
 		if err != nil {
 			storage.Close()
 			for j := 0; j < i; j++ {
@@ -282,26 +281,14 @@ func (sc *ShardedCache) FlushAll() {
 // Stats returns cache statistics.
 func (sc *ShardedCache) Stats() map[string]string {
 	totalItems := 0
-	totalBytes := int64(0)
 
 	for _, worker := range sc.workers {
 		totalItems += worker.Index().Count()
-		totalBytes += worker.LiveDataSize()
 	}
 
 	stats := make(map[string]string)
 	stats["curr_items"] = fmt.Sprintf("%d", totalItems)
-	stats["bytes"] = fmt.Sprintf("%d", totalBytes)
 	return stats
-}
-
-// LiveDataSize returns the total live data size across all shards.
-func (sc *ShardedCache) LiveDataSize() int64 {
-	var total int64
-	for _, worker := range sc.workers {
-		total += worker.LiveDataSize()
-	}
-	return total
 }
 
 // GetStartTime returns when the cache was started

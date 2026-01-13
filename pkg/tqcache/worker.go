@@ -56,9 +56,8 @@ type Worker struct {
 	nextSlotId [NumBuckets]int64
 	startTime  time.Time
 
-	DefaultTTL   time.Duration
-	maxDataSize  int64 // Maximum live data size (0 = unlimited)
-	liveDataSize int64 // Current live data size in bytes
+	DefaultTTL time.Duration
+	MaxTTL     time.Duration // Maximum TTL cap (0 = no cap)
 
 	// Sync tracking for periodic mode
 	lastSync     time.Time
@@ -66,7 +65,7 @@ type Worker struct {
 	syncNotify   func() // Called when sync is needed
 }
 
-func NewWorker(storage *Storage, DefaultTTL time.Duration, maxDataSize int64, channelCapacity int) (*Worker, error) {
+func NewWorker(storage *Storage, DefaultTTL, MaxTTL time.Duration, channelCapacity int) (*Worker, error) {
 	if channelCapacity <= 0 {
 		channelCapacity = DefaultChannelCapacity
 	}
@@ -77,7 +76,7 @@ func NewWorker(storage *Storage, DefaultTTL time.Duration, maxDataSize int64, ch
 		stopChan:     make(chan struct{}),
 		startTime:    time.Now(),
 		DefaultTTL:   DefaultTTL,
-		maxDataSize:  maxDataSize,
+		MaxTTL:       MaxTTL,
 		lastSync:     time.Now(),
 		syncInterval: DefaultSyncInterval,
 	}
@@ -126,15 +125,13 @@ func (w *Worker) recover() error {
 			continue
 		}
 
-		// Use bucket/slotIdx from the persisted record
 		entry := &IndexEntry{
-			Key:          key,
-			KeyId:        keyId,
-			Bucket:       int(rec.Bucket),
-			SlotIdx:      rec.SlotIdx,
-			Expiry:       rec.Expiry,
-			Cas:          rec.Cas,
-			LastAccessed: rec.LastAccessed,
+			Key:     key,
+			KeyId:   keyId,
+			Bucket:  int(rec.Bucket),
+			SlotIdx: rec.SlotIdx,
+			Expiry:  rec.Expiry,
+			Cas:     rec.Cas,
 		}
 		w.index.Set(entry)
 	}
@@ -271,12 +268,6 @@ func (w *Worker) handleGet(req *Request) *Response {
 		return &Response{Err: err}
 	}
 
-	// Update last accessed
-	now := time.Now()
-	entry.LastAccessed = now.Unix()
-	w.index.Touch(req.Key, now)
-	w.storage.UpdateLastAccessed(entry.KeyId, now)
-
 	return &Response{Value: data, Cas: entry.Cas}
 }
 
@@ -333,9 +324,18 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 	now := time.Now()
 	var expiry int64
 	if ttl > 0 {
+		// Cap TTL to MaxTTL if set
+		if w.MaxTTL > 0 && ttl > w.MaxTTL {
+			ttl = w.MaxTTL
+		}
 		expiry = now.Add(ttl).UnixMilli()
 	} else if w.DefaultTTL > 0 {
-		expiry = now.Add(w.DefaultTTL).UnixMilli()
+		defaultTTL := w.DefaultTTL
+		// Cap default TTL to MaxTTL if set
+		if w.MaxTTL > 0 && defaultTTL > w.MaxTTL {
+			defaultTTL = w.MaxTTL
+		}
+		expiry = now.Add(defaultTTL).UnixMilli()
 	}
 
 	// Check if key exists
@@ -346,15 +346,7 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 		}
 	}
 
-	// Update live data size early and trigger LRU eviction BEFORE allocating slots
-	// This ensures eviction doesn't truncate the slot we're about to use
-	w.liveDataSize += int64(len(value))
-	if exists {
-		w.liveDataSize -= int64(existing.Length)
-	}
-	w.lruEvict()
-
-	// Now compact old data slot if bucket changed (after eviction is done)
+	// Compact old data slot if bucket changed
 	if exists && existing.Bucket != bucket {
 		w.compactDataSlot(existing.Bucket, existing.SlotIdx)
 	}
@@ -384,12 +376,11 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 
 	// Write key record (including bucket/slotIdx for recovery)
 	keyRec := &KeyRecord{
-		KeyLen:       uint16(len(key)),
-		LastAccessed: now.Unix(),
-		Cas:          cas,
-		Expiry:       expiry,
-		Bucket:       byte(bucket),
-		SlotIdx:      slotIdx,
+		KeyLen:  uint16(len(key)),
+		Cas:     cas,
+		Expiry:  expiry,
+		Bucket:  byte(bucket),
+		SlotIdx: slotIdx,
 	}
 	copy(keyRec.Key[:], key)
 	if err := w.storage.WriteKeyRecord(keyId, keyRec); err != nil {
@@ -401,21 +392,15 @@ func (w *Worker) doSet(key string, value []byte, ttl time.Duration, existingCas 
 		return &Response{Err: err}
 	}
 
-	// Live data size was already updated above before allocation
-
-	// Trigger LRU eviction if needed (already done above, but re-check in case of edge cases)
-	// w.lruEvict() -- moved to before allocation
-
 	// Update index
 	entry := &IndexEntry{
-		Key:          key,
-		KeyId:        keyId,
-		Bucket:       bucket,
-		SlotIdx:      slotIdx,
-		Length:       len(value),
-		Expiry:       expiry,
-		Cas:          cas,
-		LastAccessed: now.Unix(),
+		Key:     key,
+		KeyId:   keyId,
+		Bucket:  bucket,
+		SlotIdx: slotIdx,
+		Length:  len(value),
+		Expiry:  expiry,
+		Cas:     cas,
 	}
 	w.index.Set(entry)
 
@@ -436,9 +421,6 @@ func (w *Worker) handleDelete(req *Request) *Response {
 func (w *Worker) deleteEntry(entry *IndexEntry) {
 	// Remove from index FIRST (clears slotIndex before compactDataSlot moves another entry there)
 	w.index.Delete(entry.Key)
-
-	// Update live data size
-	w.liveDataSize -= int64(entry.Length)
 
 	// Compact data slot: move tail to freed slot and truncate
 	w.compactDataSlot(entry.Bucket, entry.SlotIdx)
@@ -539,14 +521,12 @@ func (w *Worker) handleTouch(req *Request) *Response {
 	if err != nil {
 		return &Response{Err: err}
 	}
-	rec.LastAccessed = now.Unix()
 	rec.Expiry = expiry
 	if err := w.storage.WriteKeyRecord(entry.KeyId, rec); err != nil {
 		return &Response{Err: err}
 	}
 
 	// Update index
-	entry.LastAccessed = now.Unix()
 	entry.Expiry = expiry
 	w.index.Set(entry)
 
@@ -626,7 +606,6 @@ func (w *Worker) doIncrDecr(key string, delta uint64, incr bool) *Response {
 	// Update CAS
 	now := time.Now()
 	entry.Cas = uint64(now.UnixNano())
-	entry.LastAccessed = now.Unix()
 	entry.Length = len(newData)
 	w.index.Set(entry)
 
@@ -690,7 +669,6 @@ func (w *Worker) doAppendPrepend(key string, value []byte, append bool) *Respons
 	// Update entry
 	now := time.Now()
 	entry.Cas = uint64(now.UnixNano())
-	entry.LastAccessed = now.Unix()
 	entry.Length = len(newData)
 	w.index.Set(entry)
 
@@ -701,7 +679,6 @@ func (w *Worker) doAppendPrepend(key string, value []byte, append bool) *Respons
 func (w *Worker) handleFlushAll(req *Request) *Response {
 	// Reset in-memory structures
 	w.index = NewIndex()
-	w.liveDataSize = 0
 
 	// Truncate all files to reclaim space
 	w.storage.TruncateKeysFile(0)
@@ -756,53 +733,6 @@ func (w *Worker) cleanupExpired() {
 // StartTime returns when the worker was started
 func (w *Worker) StartTime() time.Time {
 	return w.startTime
-}
-
-// lruEvict evicts items until liveDataSize <= maxDataSize.
-// Phase 1: Evict expired items first
-// Phase 2: Evict from LRU tail (least recently used)
-func (w *Worker) lruEvict() {
-	if w.maxDataSize <= 0 {
-		return // No limit set
-	}
-
-	now := time.Now().UnixMilli()
-
-	// Phase 1: Evict expired items first
-	for w.liveDataSize > w.maxDataSize {
-		entry := w.index.expiryHeap.PeekMin()
-		if entry == nil || entry.Expiry > now || entry.Expiry == 0 {
-			break
-		}
-
-		// Find the index entry by keyId and delete it
-		indexEntry := w.index.GetByKeyId(entry.KeyId)
-		if indexEntry != nil {
-			w.deleteEntry(indexEntry)
-		} else {
-			// Just remove from heap if entry not found
-			w.index.expiryHeap.Remove(entry.KeyId)
-		}
-	}
-
-	// Phase 2: LRU eviction from tail
-	for w.liveDataSize > w.maxDataSize {
-		node := w.index.lruList.PopTail()
-		if node == nil {
-			break
-		}
-
-		// Find and delete the entry by keyId
-		indexEntry := w.index.GetByKeyId(node.KeyId)
-		if indexEntry != nil {
-			w.deleteEntry(indexEntry)
-		}
-	}
-}
-
-// LiveDataSize returns the current live data size in bytes
-func (w *Worker) LiveDataSize() int64 {
-	return w.liveDataSize
 }
 
 // Sync syncs the worker's storage to disk
