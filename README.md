@@ -10,7 +10,6 @@ with disk-based persistence, making it ideal for session storage that survives r
 - **Efficient Storage**: About 25-33% waste space on disk on average
 - **Faster than Redis**: About 2x faster than Redis in typical cases
 - **Memcached Compatible**: Supports all Memcached commands, including binary protocol
-- **Generous Limits**: Maximum key size is 1KB / Maximum value size is 64MB
 - **Eviction Optional**: Set `max-data-size = 0` to disable eviction (default)
 - **TTL Enforcement**: Maximum TTL defaults to 24 hours (set to 0 to disable)
 
@@ -52,7 +51,7 @@ tqcache [options]
 | `-sync-mode`     | `periodic`  | Sync mode: `none`, `periodic`, `always`                        |
 | `-sync-interval` | `1s`        | Interval between fsync calls (when periodic)                   |
 
-**Fixed limits:** Max key size is 1KB, max value size is 64MB.
+**Fixed limits:** Max key size is 1KB. Max value size is 64MB.
 
 NB: You may also use a config file instead of CLI flags (see [tqcache.conf](cmd/tqcache/tqcache.conf)).
 
