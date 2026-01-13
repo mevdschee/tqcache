@@ -2,8 +2,8 @@ package tqsession
 
 import "time"
 
-// CacheInterface defines the common interface for Cache and ShardedCache.
-// Allows server to work with either implementation.
+// CacheInterface defines the interface for ShardedCache.
+// Allows server to work with the cache implementation.
 type CacheInterface interface {
 	Get(key string) ([]byte, uint64, error)
 	Set(key string, value []byte, ttl time.Duration) (uint64, error)
@@ -22,6 +22,5 @@ type CacheInterface interface {
 	GetStartTime() time.Time
 }
 
-// Ensure both types implement CacheInterface
-var _ CacheInterface = (*Cache)(nil)
+// Ensure ShardedCache implements CacheInterface
 var _ CacheInterface = (*ShardedCache)(nil)
