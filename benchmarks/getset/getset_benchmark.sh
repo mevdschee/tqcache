@@ -153,7 +153,7 @@ listen = :11221
 
 [storage]
 data-dir = /tmp/tqsession-bench
-shards = 4
+shards = 2
 sync-mode = $SYNC_MODE
 sync-interval = $SYNC_INTERVAL
 max-data-size = 1GB
