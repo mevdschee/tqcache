@@ -13,19 +13,25 @@ with standard clients.
 
 ### Concurrency Model
 
-Uses a **sharded architecture** with RWMutex per shard for concurrent access:
+Uses a **lock-free, worker-based architecture** with one goroutine per shard:
 
 | Component         | Description                                      |
 |-------------------|--------------------------------------------------|
 | **ShardedCache**  | Routes keys to shards via FNV-1a hash            |
-| **Shard (Cache)** | Independent cache with own mutex, index, storage |
-| **Storage**       | Per-shard files with bucket-level RWMutex        |
+| **Worker**        | Single goroutine processing requests via channel |
+| **Storage**       | Per-shard files (no locks needed)                |
 | **Sync Worker**   | Periodic fsync across all shards (configurable)  |
 
-**Sharding benefits**:
-- 16 shards (default) allow parallel access to different keys
-- RWMutex allows concurrent reads within each shard
-- Write lock only held briefly for index updates
+**How it works**:
+1. Each shard has a dedicated **Worker** goroutine that owns all shard state
+2. Requests are sent via buffered channels (1000 capacity by default)
+3. Worker processes requests **sequentially** - no locks needed within a shard
+4. GOMAXPROCS = `max(min(cpu_count, shards/4), 1)` for optimal parallelism
+
+**Benefits**:
+- **Lock-free**: No mutexes, no lock contention within shards
+- **Predictable latency**: Sequential processing, no lock waiting
+- **Simple reasoning**: Each shard is single-threaded, no race conditions
 
 ---
 
