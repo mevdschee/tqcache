@@ -92,7 +92,7 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 | **Redis** (Periodic) | ~61k | ~122k | ~769MB | ~1 core |
 | **TQCache** (Periodic) | ~83k | ~144k | ~77MB | ~4 core |
 
-NB: the amount of cores used can be calculated as: shards / 4
+NB: the maximum amount of cores used can be calculated as: shards / 4
 
 ## Testing
 
