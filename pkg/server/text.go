@@ -67,7 +67,9 @@ func (s *Server) handleText(reader *bufio.Reader, writer *bufio.Writer) {
 		}
 
 		// Flush once per command (batched writes)
-		writer.Flush()
+		if reader.Buffered() == 0 {
+			writer.Flush()
+		}
 	}
 }
 

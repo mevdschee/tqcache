@@ -146,7 +146,9 @@ func (s *Server) handleBinary(conn net.Conn, reader *bufio.Reader, writer *bufio
 			s.sendBinaryResponse(writer, req, resUnknownCmd, nil, nil, nil, 0)
 		}
 
-		writer.Flush()
+		if reader.Buffered() == 0 {
+			writer.Flush()
+		}
 	}
 }
 
@@ -406,8 +408,8 @@ func (s *Server) handleBinaryGATCommon(writer *bufio.Writer, req binaryHeader, e
 
 func (s *Server) sendBinaryResponse(writer *bufio.Writer, req binaryHeader, status uint16, extras []byte, key []byte, value []byte, cas uint64) {
 	totalBodyLen := uint32(len(extras) + len(key) + len(value))
-	totalLen := 24 + totalBodyLen
-	buf := make([]byte, totalLen)
+	// Header is 24 bytes
+	var buf [24]byte
 
 	buf[0] = resMagic
 	buf[1] = req.Opcode
@@ -419,17 +421,27 @@ func (s *Server) sendBinaryResponse(writer *bufio.Writer, req binaryHeader, stat
 	binary.BigEndian.PutUint32(buf[12:16], req.Opaque)
 	binary.BigEndian.PutUint64(buf[16:24], cas)
 
-	if len(extras) > 0 {
-		copy(buf[24:], extras)
-	}
-	if len(key) > 0 {
-		copy(buf[24+len(extras):], key)
-	}
-	if len(value) > 0 {
-		copy(buf[24+len(extras)+len(key):], value)
+	if _, err := writer.Write(buf[:]); err != nil {
+		log.Printf("Response Write Error: %v", err)
+		return
 	}
 
-	if _, err := writer.Write(buf); err != nil {
-		log.Printf("Response Write Error: %v", err)
+	if len(extras) > 0 {
+		if _, err := writer.Write(extras); err != nil {
+			log.Printf("Response Write Extras Error: %v", err)
+			return
+		}
+	}
+	if len(key) > 0 {
+		if _, err := writer.Write(key); err != nil {
+			log.Printf("Response Write Key Error: %v", err)
+			return
+		}
+	}
+	if len(value) > 0 {
+		if _, err := writer.Write(value); err != nil {
+			log.Printf("Response Write Value Error: %v", err)
+			return
+		}
 	}
 }

@@ -46,7 +46,7 @@ func (s *Server) Start() error {
 
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
-	log.Printf("Accepted connection from %s", conn.RemoteAddr())
+	// log.Printf("Accepted connection from %s", conn.RemoteAddr())
 
 	// Peek first byte to determine protocol
 	reader := bufio.NewReader(conn)
@@ -57,13 +57,13 @@ func (s *Server) handleConnection(conn net.Conn) {
 		if err != io.EOF {
 			log.Printf("Peek error from %s: %v", conn.RemoteAddr(), err)
 		} else {
-			log.Printf("Connection closed during peek %s", conn.RemoteAddr())
+			// log.Printf("Connection closed during peek %s", conn.RemoteAddr())
 		}
 		return
 	}
 	conn.SetReadDeadline(time.Time{}) // Reset deadline
 
-	log.Printf("First byte: 0x%x (Binary: %v)", firstByte[0], firstByte[0] == 0x80)
+	// log.Printf("First byte: 0x%x (Binary: %v)", firstByte[0], firstByte[0] == 0x80)
 
 	// Use buffered writer for all responses (64KB buffer for better batching)
 	writer := bufio.NewWriterSize(conn, 65536)
