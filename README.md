@@ -75,18 +75,18 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 ![Performance Benchmark](benchmarks/getset/getset_benchmark_16.png)
 
 ### Performance Highlights
-- **Write (SET)**: outperforms Redis (~87k RPS vs ~61k RPS) in writing persistence-backed data (Periodic Sync).
-- **Read (GET)**: outperforms Redis (~146k RPS vs ~108k RPS) in reading from memory.
-- **Memory Efficiency**: uses ~14x less memory than Redis (~55MB vs ~768MB), uses OS disk cache.
+- **Write (SET)**: outperforms Redis (~83k RPS vs ~51k RPS) in writing persistence-backed data (Periodic Sync).
+- **Read (GET)**: outperforms Redis (~184k RPS vs ~89k RPS) in reading from persistence.
+- **Memory Efficiency**: uses ~21x less memory than Redis (~58MB vs ~1244MB), uses OS disk cache.
 - **CPU Efficiency**: uses ~4x more CPU than Redis (~4 vs ~1 core) as Redis is single threaded.
 
 ### Summary Table
 
 | Reference | SET (RPS) | GET (RPS) | Memory (MB) | CPU Usage |
 | :--- | :--- | :--- | :--- | :--- |
-| **Memcached** (Memory) | ~124k | ~212k | ~680MB | ~2 core |
-| **Redis** (Periodic) | ~61k | ~108k | ~768MB | ~1 core |
-| **TQCache** (Periodic) | ~87k | ~146k | ~55MB | ~4 core |
+| **Memcached** (Memory) | ~129k | ~253k | ~681MB | ~3 core |
+| **Redis** (Periodic) | ~51k | ~89k | ~1244MB | ~1 core |
+| **TQCache** (Periodic) | ~83k | ~184k | ~58MB | ~4 core |
 
 NB: The maximum amount of cores used can be calculated as: shards / 4
 
