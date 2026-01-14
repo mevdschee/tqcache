@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -129,10 +131,20 @@ func main() {
 	// but might just be multiple connections from one pool in go-redis case.
 	// For simplicity, we create a new "Benchmarker" wrapper per routine.
 
+	// Factory function to create new clients based on protocol
+	// Note: For benchmarks, creating a new client per goroutine (or sharing one) depends on the driver.
+	// gomemcache is typically thread-safe but here we mimicked the original behavior of one client per routine.
+	// go-redis is also thread-safe and uses a pool.
+	// To strictly emulate "concurrent clients", creating separate instances is cleaner for isolation,
+	// but might just be multiple connections from one pool in go-redis case.
+	// For simplicity, we create a new "Benchmarker" wrapper per routine.
+
 	clientFactory := func() Benchmarker {
 		switch *protocol {
 		case "memcache":
 			return NewMemcacheClient(*host)
+		case "binary":
+			return NewBinaryMemcacheClient(*host)
 		case "redis":
 			return NewRedisClient(*host)
 		default:
@@ -162,6 +174,144 @@ func main() {
 		elapsed := time.Since(start)
 		printResults("GET", elapsed)
 	}
+}
+
+// BinaryMemcacheClient implements Benchmarker for Memcached Binary Protocol
+type BinaryMemcacheClient struct {
+	conn   net.Conn
+	reader *bufio.Reader
+	writer *bufio.Writer
+}
+
+func NewBinaryMemcacheClient(server string) *BinaryMemcacheClient {
+	conn, err := net.Dial("tcp", server)
+	if err != nil {
+		log.Fatalf("Failed to connect to %s: %v", server, err)
+	}
+	return &BinaryMemcacheClient{
+		conn:   conn,
+		reader: bufio.NewReader(conn),
+		writer: bufio.NewWriter(conn),
+	}
+}
+
+func (c *BinaryMemcacheClient) Set(key string, value []byte) error {
+	// Header (24 bytes) + Extras (8 bytes) + Key + Value
+	totalLen := 8 + len(key) + len(value)
+	// We can write components directly to bufio to avoid alloc of full buffer
+	// Or just alloc small header and write rest.
+
+	// Header
+	reqHeader := make([]byte, 24)
+	reqHeader[0] = 0x80
+	reqHeader[1] = 0x01 // SET
+	reqHeader[2] = byte(len(key) >> 8)
+	reqHeader[3] = byte(len(key))
+	reqHeader[4] = 8 // Extras length
+	reqHeader[8] = byte(totalLen >> 24)
+	reqHeader[9] = byte(totalLen >> 16)
+	reqHeader[10] = byte(totalLen >> 8)
+	reqHeader[11] = byte(totalLen)
+
+	if _, err := c.writer.Write(reqHeader); err != nil {
+		return err
+	}
+
+	// Extras (8 bytes of zeros)
+	// We can just write 8 zeros
+	zeros := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	if _, err := c.writer.Write(zeros); err != nil {
+		return err
+	}
+
+	// Key
+	if _, err := c.writer.WriteString(key); err != nil {
+		return err
+	}
+	// Value
+	if _, err := c.writer.Write(value); err != nil {
+		return err
+	}
+
+	if err := c.writer.Flush(); err != nil {
+		return err
+	}
+
+	// Read response header (24 bytes)
+	respHeader := make([]byte, 24)
+	if _, err := io.ReadFull(c.reader, respHeader); err != nil {
+		return err
+	}
+
+	// Check status (bytes 6-7)
+	status := uint16(respHeader[6])<<8 | uint16(respHeader[7])
+	if status != 0 {
+		return fmt.Errorf("memcache error status: %d", status)
+	}
+
+	bodyLen := uint32(respHeader[8])<<24 | uint32(respHeader[9])<<16 | uint32(respHeader[10])<<8 | uint32(respHeader[11])
+	if bodyLen > 0 {
+		// Discard body
+		discard := make([]byte, bodyLen)
+		if _, err := io.ReadFull(c.reader, discard); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *BinaryMemcacheClient) Get(key string) error {
+	// Header (24 bytes) + Key
+	totalLen := len(key)
+
+	reqHeader := make([]byte, 24)
+	reqHeader[0] = 0x80
+	reqHeader[1] = 0x00 // GET
+	reqHeader[2] = byte(len(key) >> 8)
+	reqHeader[3] = byte(len(key))
+	reqHeader[4] = 0 // Extra len
+	reqHeader[8] = byte(totalLen >> 24)
+	reqHeader[9] = byte(totalLen >> 16)
+	reqHeader[10] = byte(totalLen >> 8)
+	reqHeader[11] = byte(totalLen)
+
+	if _, err := c.writer.Write(reqHeader); err != nil {
+		return err
+	}
+	if _, err := c.writer.WriteString(key); err != nil {
+		return err
+	}
+	if err := c.writer.Flush(); err != nil {
+		return err
+	}
+
+	// Read response header
+	respHeader := make([]byte, 24)
+	if _, err := io.ReadFull(c.reader, respHeader); err != nil {
+		return err
+	}
+
+	status := uint16(respHeader[6])<<8 | uint16(respHeader[7])
+	if status != 0 {
+		return fmt.Errorf("memcache error status: %d", status)
+	}
+
+	bodyLen := uint32(respHeader[8])<<24 | uint32(respHeader[9])<<16 | uint32(respHeader[10])<<8 | uint32(respHeader[11])
+	if bodyLen > 0 {
+		// Read body (Extras + Key + Value)
+		// We don't parse it, just consume it
+		trash := make([]byte, bodyLen)
+		if _, err := io.ReadFull(c.reader, trash); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *BinaryMemcacheClient) Close() error {
+	return c.conn.Close()
 }
 
 func runBenchmark(name string, factory func() Benchmarker, op func(Benchmarker) error) {

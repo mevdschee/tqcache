@@ -179,10 +179,17 @@ CONF
 
     # --- Run Benchmarks ---
 
-    # TQCache
+    # # TQCache Text Protocol
+    # echo "Benchmarking TQCache..."
+    # start_monitor $TQ_PID
+    # ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQCache" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQ_COUNT -size $SIZE -keys $KEYS -csv > results.tmp
+    # STATS=$(stop_monitor $TQ_PID)
+    # awk -v stats="$STATS" '{print $0 "," stats}' results.tmp >> $OUTPUT
+
+    # TQCache Binary Protocol
     echo "Benchmarking TQCache..."
     start_monitor $TQ_PID
-    ./benchmark-tool -host localhost:11221 -protocol memcache -label "TQCache" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQ_COUNT -size $SIZE -keys $KEYS -csv > results.tmp
+    ./benchmark-tool -host localhost:11221 -protocol binary -label "TQCache" -mode "$SYNC_MODE" -clients $CLIENTS -requests $REQ_COUNT -size $SIZE -keys $KEYS -csv > results.tmp
     STATS=$(stop_monitor $TQ_PID)
     awk -v stats="$STATS" '{print $0 "," stats}' results.tmp >> $OUTPUT
 
