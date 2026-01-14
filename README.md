@@ -8,7 +8,7 @@ with disk-based persistence, making it ideal for session storage that survives r
 - **Session Storage**: Ideal for PHP's native `memcached` session handler
 - **Persistent Storage**: Data stored on disk, survives server restarts
 - **Efficient Storage**: About 25-33% waste space on disk on average
-- **Faster than Redis**: About 50% faster than Redis in typical cases
+- **Faster than Redis**: More than 50% faster than Redis in typical cases
 - **Memcached Compatible**: Supports all Memcached commands, including binary protocol
 - **TTL Enforcement**: Maximum TTL defaults to 24 hours (set to 0 to disable)
 - **No Eviction**: No LRU eviction support; Use max-ttl to limit diskspace usage
