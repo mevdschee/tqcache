@@ -82,9 +82,9 @@ Benchmarks were run on a local development environment (Linux, Loopback).
 - **Write (SET)**: +62% faster than Redis (~83k RPS vs ~51k RPS) when writing
   with Periodic Sync.
 - **Read (GET)**: +67% faster than Redis (~179k RPS vs ~107k RPS) when reading.
-- **Memory Efficiency**: uses ~21x less memory than Redis (~54MB vs ~767MB),
+- **Memory**: reserves ~21x less memory than Redis (~54MB vs ~767MB),
   uses OS disk cache.
-- **CPU Efficiency**: uses ~4x more CPU than Redis (~4 vs ~1 core) as Redis is
+- **CPU**: uses ~4x more CPU than Redis (~4 vs ~1 core) as Redis is
   single threaded.
 
 ### Summary Table
