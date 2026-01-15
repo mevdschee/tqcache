@@ -91,7 +91,7 @@ and double the size for each file.
 | `data`   | length            | Raw value bytes                       |
 | `unused` | bucketSize-length | Unused slot space                     |
 
-**Slot sizes**: Total slot = `4 + bucket_size` bytes. Buckets: 1KB, 2KB, ...,
+**Slot sizes**: Total slot = `4 + bucket_size` bytes. Buckets: 1KB, 2KB, 4KB, ...,
 64MB.
 
 ---
