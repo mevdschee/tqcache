@@ -4,6 +4,8 @@ TQCache is a high-performance, persistent session storage server. It provides a
 Memcached-compatible interface with disk-based persistence, making it ideal for
 session storage that survives restarts.
 
+Blog post: https://www.tqdev.com/2026-tqcache-memcache-redis-alternative
+
 ## Features
 
 - **Session Storage**: Ideal for PHP's native `memcached` session handler
