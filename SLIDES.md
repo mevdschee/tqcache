@@ -137,17 +137,17 @@ data/
 
 | Reference              | SET (RPS) | GET (RPS) | Memory (MB) | CPU Usage |
 | :--------------------- | :-------- | :-------- | :---------- | :-------- |
-| **Memcached** (Memory) | ~129k     | ~253k     | ~681MB      | ~3 core   |
-| **Redis** (Periodic)   | ~51k      | ~107k     | ~767MB      | ~1 core   |
-| **TQCache** (Periodic) | ~83k      | ~179k     | ~54MB       | ~4 core   |
+| **Memcached** (Memory) | ~126k     | ~275k     | ~1073MB     | ~2.5 core |
+| **Redis** (Periodic)   | ~62k      | ~107k     | ~1339MB     | ~1 core   |
+| **TQCache** (Periodic) | ~92k      | ~176k     | ~70MB       | ~4 core   |
 
 ---
 
 # Performance Highlights
 
-- **SET**: +62% faster than Redis (~83k vs ~51k RPS)
-- **GET**: +67% faster than Redis (~179k vs ~107k RPS)
-- **Memory**: ~21x less than Redis (~54MB vs ~767MB)
+- **SET**: +49% faster than Redis (~92k vs ~62k RPS)
+- **GET**: +64% faster than Redis (~176k vs ~107k RPS)
+- **Memory**: ~19x less than Redis (~70MB vs ~1339MB)
 - **Uses OS disk cache** instead of in-process memory
 
 ---

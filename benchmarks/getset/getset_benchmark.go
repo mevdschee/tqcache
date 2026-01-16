@@ -30,7 +30,7 @@ var (
 	keys       = flag.Int("keys", 100000, "Key space size")
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 	operation  = flag.String("op", "both", "operation to benchmark: set, get, or both")
-	sequential = flag.Bool("sequential", false, "Sequential key access (vs random)")
+	sequential = flag.Bool("sequential", true, "Sequential key access (vs random)")
 )
 
 // Benchmarker defines the interface for benchmarking different cache backends
